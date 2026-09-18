@@ -1,0 +1,1140 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Okul Dijital Pano</title>
+<style>
+  :root{
+    --bg-0:#070b14;
+    --bg-1:#0c1220;
+    --bg-2:#121a2c;
+    --bg-3:#1a2438;
+    --line: rgba(255,255,255,.09);
+    --line-strong: rgba(255,255,255,.16);
+    --text-0:#f4f7fc;
+    --text-1:#aab4cc;
+    --text-2:#727f9c;
+    --accent:#f2a93b;
+    --accent-2:#2dd4bf;
+    --danger:#ef5b5b;
+    --radius-lg:22px;
+    --radius-md:14px;
+    --radius-sm:9px;
+    --font-display:"Bahnschrift","Segoe UI Semibold","Arial Narrow",sans-serif;
+    --font-body:"Segoe UI",system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html{font-size:clamp(14px,0.85vw + 8px,20px);}
+  body{
+    margin:0; padding:0; background:var(--bg-0); color:var(--text-0);
+    font-family:var(--font-body); overflow:hidden; height:100vh; width:100vw;
+    -webkit-font-smoothing:antialiased;
+  }
+  img{max-width:100%; display:block;}
+  button{font-family:inherit; cursor:pointer;}
+  .icon{width:1em; height:1em; stroke:currentColor; fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; vertical-align:-0.15em;}
+  .icon.filled{fill:currentColor; stroke:none;}
+
+  /* ============ KIOSK ============ */
+  #kiosk{
+    position:fixed; inset:0;
+    background:
+      radial-gradient(1200px 700px at 85% -10%, rgba(242,169,59,.10), transparent 60%),
+      radial-gradient(1000px 600px at -10% 110%, rgba(45,212,191,.08), transparent 60%),
+      linear-gradient(180deg, var(--bg-0), var(--bg-1) 40%, var(--bg-0));
+    display:grid;
+    grid-template-columns: 1fr 27rem;
+    grid-template-rows: 6.2rem 1fr 4.6rem;
+    grid-template-areas:
+      "topbar topbar"
+      "media  side"
+      "ticker ticker";
+    height:100vh; width:100vw;
+  }
+
+  /* --- Top bar --- */
+  .topbar{grid-area:topbar; display:flex; align-items:center; justify-content:space-between; padding:0 1.8rem; border-bottom:1px solid var(--line);}
+  .brand{display:flex; align-items:center; gap:.9rem; min-width:0;}
+  .brand-logo{width:3.4rem; height:3.4rem; border-radius:.8rem; background:var(--bg-2); border:1px solid var(--line-strong); display:flex; align-items:center; justify-content:center; overflow:hidden; flex-shrink:0;}
+  .brand-logo img{width:100%; height:100%; object-fit:cover;}
+  .brand-logo .icon{width:1.7rem; height:1.7rem; color:var(--text-2);}
+  .brand-name{font-family:var(--font-display); font-weight:700; font-size:1.7rem; letter-spacing:.2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:34rem;}
+  .brand-sub{font-size:.85rem; color:var(--text-2); margin-top:.1rem;}
+  .clockbox{text-align:right;}
+  .clock-time{font-family:var(--font-display); font-weight:700; font-size:2.5rem; font-variant-numeric:tabular-nums; letter-spacing:1px; color:var(--accent); line-height:1;}
+  .clock-date{font-size:.95rem; color:var(--text-1); margin-top:.25rem;}
+
+  /* --- Media / slideshow --- */
+  .media{grid-area:media; position:relative; overflow:hidden; background:var(--bg-1); border-right:1px solid var(--line);}
+  .slide{position:absolute; inset:0; opacity:0; transition:opacity 1.1s ease;}
+  .slide.active{opacity:1; z-index:2;}
+  .slide img, .slide video{width:100%; height:100%; object-fit:cover; animation:kenburns 14s ease-in-out forwards;}
+  .slide.noanim img, .slide.noanim video{animation:none;}
+  @keyframes kenburns{from{transform:scale(1);} to{transform:scale(1.08);}}
+  .media-empty{position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1rem; color:var(--text-2);
+    background:
+      repeating-linear-gradient(135deg, rgba(255,255,255,.02) 0 2px, transparent 2px 26px);
+  }
+  .media-empty .icon{width:4.2rem; height:4.2rem; color:var(--bg-3); stroke-width:1.2;}
+  .media-empty span{font-size:1.05rem;}
+  .media-caption{position:absolute; left:0; right:0; bottom:0; z-index:3; padding:1.1rem 1.6rem; font-size:1.05rem; color:#fff;
+    background:linear-gradient(180deg, transparent, rgba(0,0,0,.55)); display:none;}
+  .media-caption.show{display:block;}
+
+  /* --- Side column --- */
+  .side{grid-area:side; overflow:hidden; padding:1rem; display:flex; flex-direction:column; gap:.7rem; min-height:0;}
+  .panel{background:var(--bg-2); border:1px solid var(--line); border-radius:var(--radius-lg); padding:.85rem 1rem; min-height:0;}
+  .panel-head{display:flex; align-items:center; gap:.5rem; font-size:.92rem; font-weight:600; color:var(--text-0); margin-bottom:.5rem;}
+  .panel-head .icon{color:var(--accent); width:1.05rem; height:1.05rem;}
+
+  /* duty */
+  #dutyList{columns:2; column-gap:.9rem;}
+  .duty-row{display:grid; grid-template-columns:4.6rem 1fr; align-items:center; gap:.5rem; padding:.28rem 0; border-bottom:1px dashed var(--line); break-inside:avoid;}
+  .duty-row:last-child{border-bottom:none;}
+  .duty-tag{font-size:.66rem; font-weight:700; color:var(--bg-0); background:var(--accent-2); padding:.18rem .4rem; border-radius:.4rem; text-align:center; letter-spacing:.2px;}
+  .duty-name{font-size:.85rem; color:var(--text-0); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+
+  /* schedule */
+  .sched-hero{display:flex; align-items:baseline; justify-content:space-between; margin-bottom:.5rem;}
+  .sched-hero-label{font-size:.8rem; color:var(--text-1);}
+  .sched-hero-time{font-family:var(--font-display); font-weight:700; font-size:1.6rem; color:var(--accent); font-variant-numeric:tabular-nums;}
+  .sched-bar{height:.35rem; border-radius:1rem; background:var(--bg-3); overflow:hidden; margin-bottom:.55rem;}
+  .sched-bar-fill{height:100%; background:linear-gradient(90deg,var(--accent-2),var(--accent)); width:0%; transition:width 1s linear;}
+  .sched-list{columns:2; column-gap:.9rem;}
+  .sched-item{display:flex; justify-content:space-between; gap:.4rem; font-size:.74rem; padding:.2rem .45rem; border-radius:.4rem; color:var(--text-2); break-inside:avoid;}
+  .sched-item.now{background:rgba(242,169,59,.14); color:var(--text-0); font-weight:600;}
+  .sched-item.brk{opacity:.65; font-style:italic;}
+
+  /* weather + module row */
+  .duo{display:grid; grid-template-columns:1fr 1fr; gap:.8rem; flex:1; min-height:0;}
+  .duo .panel{display:flex; flex-direction:column; min-height:0;}
+  .weather-icon{width:2.1rem; height:2.1rem; color:var(--accent);}
+  .weather-temp{font-family:var(--font-display); font-weight:700; font-size:1.7rem; line-height:1;}
+  .weather-cond{font-size:.8rem; color:var(--text-1); margin-top:.15rem;}
+  .weather-meta{font-size:.7rem; color:var(--text-2); margin-top:.4rem; display:flex; gap:.6rem;}
+  .module-title{font-weight:600; font-size:.86rem; margin-bottom:.3rem; flex-shrink:0;}
+  .module-text{font-size:.76rem; color:var(--text-1); white-space:pre-wrap; line-height:1.4; flex:1; overflow:hidden;
+    -webkit-mask-image:linear-gradient(to bottom, black 75%, transparent 100%); mask-image:linear-gradient(to bottom, black 75%, transparent 100%);}
+
+  /* --- Ticker --- */
+  .ticker{grid-area:ticker; display:flex; align-items:stretch; border-top:1px solid var(--line); background:var(--bg-1); overflow:hidden;}
+  .ticker-tag{flex-shrink:0; width:9.5rem; display:flex; align-items:center; justify-content:center; gap:.5rem; background:var(--accent); color:#1a1200; font-weight:700; font-size:1.05rem; letter-spacing:.3px;}
+  .ticker-tag .icon{width:1.3rem; height:1.3rem;}
+  .ticker-track{flex:1; position:relative; overflow:hidden; display:flex; align-items:center;}
+  .ticker-move{display:inline-flex; white-space:nowrap; animation:ticker-scroll linear infinite; padding-left:100%;}
+  .ticker-move span{font-size:1.5rem; font-weight:600; padding-right:5rem; color:var(--text-0);}
+  @keyframes ticker-scroll{from{transform:translateX(0);} to{transform:translateX(-100%);}}
+
+  /* --- floating controls --- */
+  .kiosk-controls{position:fixed; top:calc(6.2rem + .7rem); right:1rem; display:flex; gap:.5rem; z-index:50; opacity:0; transition:opacity .4s ease; pointer-events:none;}
+  .kiosk-controls.show{opacity:1; pointer-events:auto;}
+  .ctrl-btn{width:2.6rem; height:2.6rem; border-radius:50%; border:1px solid var(--line-strong); background:rgba(18,26,44,.85); color:var(--text-1); display:flex; align-items:center; justify-content:center; backdrop-filter:blur(6px);}
+  .ctrl-btn:hover{color:var(--text-0); border-color:var(--accent);}
+  .ctrl-btn .icon{width:1.2rem; height:1.2rem;}
+
+  /* ============ LOGIN ============ */
+  #loginModal{position:fixed; inset:0; background:rgba(5,8,15,.72); backdrop-filter:blur(4px); display:none; align-items:center; justify-content:center; z-index:200;}
+  #loginModal.show{display:flex;}
+  .login-card{width:23rem; max-width:90vw; background:var(--bg-1); border:1px solid var(--line-strong); border-radius:var(--radius-lg); padding:2rem; box-shadow:0 30px 60px rgba(0,0,0,.5);}
+  .login-card h2{margin:0 0 .3rem; font-family:var(--font-display); font-size:1.5rem;}
+  .login-card p{margin:0 0 1.3rem; color:var(--text-2); font-size:.85rem;}
+  .field{margin-bottom:1rem;}
+  .field label{display:block; font-size:.8rem; color:var(--text-1); margin-bottom:.35rem;}
+  .field input, .field textarea, .field select{width:100%; padding:.65rem .75rem; border-radius:.6rem; border:1px solid var(--line-strong); background:var(--bg-2); color:var(--text-0); font-size:.92rem; font-family:inherit;}
+  .field input:focus, .field textarea:focus, .field select:focus{outline:2px solid var(--accent); outline-offset:1px;}
+  .btn{display:inline-flex; align-items:center; justify-content:center; gap:.45rem; padding:.65rem 1.1rem; border-radius:.6rem; border:1px solid var(--line-strong); background:var(--bg-3); color:var(--text-0); font-size:.9rem; font-weight:600;}
+  .btn:hover{border-color:var(--accent);}
+  .btn.primary{background:var(--accent); color:#1a1200; border-color:var(--accent);}
+  .btn.primary:hover{filter:brightness(1.05);}
+  .btn.danger{background:transparent; color:var(--danger); border-color:rgba(239,91,91,.4);}
+  .btn.ghost{background:transparent;}
+  .btn.block{width:100%;}
+  .btn .icon{width:1rem; height:1rem;}
+  .login-error{color:var(--danger); font-size:.82rem; margin-top:.6rem; min-height:1.1rem;}
+  .login-hint{margin-top:1.1rem; font-size:.75rem; color:var(--text-2); border-top:1px solid var(--line); padding-top:.8rem;}
+
+  /* ============ ADMIN ============ */
+  #adminPanel{position:fixed; inset:0; background:#f4f6fb; color:#1c2333; display:none; z-index:150; font-family:var(--font-body);}
+  #adminPanel.show{display:flex;}
+  .admin-nav{width:15.5rem; flex-shrink:0; background:#12182a; color:#d7deee; display:flex; flex-direction:column; padding:1.1rem .8rem;}
+  .admin-brand{display:flex; align-items:center; gap:.6rem; padding:.4rem .5rem 1.2rem; border-bottom:1px solid rgba(255,255,255,.09); margin-bottom:.8rem;}
+  .admin-brand .icon{width:1.5rem; height:1.5rem; color:#f2a93b;}
+  .admin-brand b{font-family:var(--font-display); font-size:1.05rem;}
+  .nav-btn{display:flex; align-items:center; gap:.6rem; text-align:left; background:none; border:none; color:#aeb7cc; padding:.62rem .7rem; border-radius:.6rem; font-size:.88rem; margin-bottom:.15rem;}
+  .nav-btn .icon{width:1.05rem; height:1.05rem;}
+  .nav-btn:hover{background:rgba(255,255,255,.06); color:#fff;}
+  .nav-btn.active{background:#f2a93b; color:#1a1200; font-weight:700;}
+  .admin-nav-bottom{margin-top:auto; display:flex; flex-direction:column; gap:.4rem; padding-top:.8rem; border-top:1px solid rgba(255,255,255,.09);}
+
+  .admin-main{flex:1; overflow-y:auto; padding:1.8rem 2.4rem;}
+  .admin-head{display:flex; align-items:baseline; justify-content:space-between; margin-bottom:1.4rem; flex-wrap:wrap; gap:.6rem;}
+  .admin-head h1{font-family:var(--font-display); font-size:1.6rem; margin:0;}
+  .admin-head p{color:#6b7690; font-size:.85rem; margin:.2rem 0 0;}
+  .card{background:#fff; border:1px solid #e3e7f0; border-radius:16px; padding:1.4rem 1.5rem; margin-bottom:1.2rem;}
+  .card h3{margin:0 0 .2rem; font-size:1.02rem;}
+  .card .desc{color:#7b8398; font-size:.8rem; margin:0 0 1rem;}
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:1rem;}
+  .grid3{display:grid; grid-template-columns:1fr 1fr 1fr; gap:1rem;}
+  #adminPanel .field label{color:#5b6478;}
+  #adminPanel .field input, #adminPanel .field textarea, #adminPanel .field select{background:#f7f8fc; border:1px solid #dbe0ea; color:#1c2333;}
+  #adminPanel .field input:focus, #adminPanel .field textarea:focus, #adminPanel .field select:focus{outline:2px solid #f2a93b;}
+  #adminPanel .btn{background:#eef0f6; border-color:#dbe0ea; color:#1c2333;}
+  #adminPanel .btn.primary{background:#f2a93b; border-color:#f2a93b; color:#1a1200;}
+  #adminPanel .btn.danger{color:#c23a3a; border-color:#f3c9c9; background:#fff5f5;}
+
+  .row-list{display:flex; flex-direction:column; gap:.55rem;}
+  .row-item{display:flex; align-items:center; gap:.5rem; background:#f7f8fc; border:1px solid #e3e7f0; border-radius:.7rem; padding:.55rem .6rem;}
+  .row-item input, .row-item select{flex:1; border:1px solid #dbe0ea; border-radius:.5rem; padding:.4rem .55rem; background:#fff; font-size:.85rem; font-family:inherit;}
+  .row-item .mini{max-width:6.5rem; flex:none;}
+  .row-item .iconbtn{background:none; border:none; color:#8891a4; padding:.3rem; border-radius:.4rem; flex-shrink:0;}
+  .row-item .iconbtn:hover{background:#e9ecf3; color:#1c2333;}
+  .row-item .iconbtn.del:hover{color:#c23a3a;}
+
+  .media-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(9.5rem,1fr)); gap:.8rem;}
+  .media-card{border:1px solid #e3e7f0; border-radius:.8rem; overflow:hidden; background:#f7f8fc;}
+  .media-card .thumb{height:6rem; background:#0c1220 center/cover no-repeat; display:flex; align-items:center; justify-content:center; color:#5c6f96; position:relative;}
+  .media-card .thumb .icon{width:1.6rem; height:1.6rem;}
+  .media-card .thumb video{width:100%; height:100%; object-fit:cover;}
+  .media-card .mc-body{padding:.5rem .6rem;}
+  .media-card .mc-name{font-size:.75rem; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .media-card .mc-row{display:flex; align-items:center; gap:.3rem; margin-top:.35rem;}
+  .media-card input{width:4.2rem; font-size:.75rem; padding:.25rem .35rem; border-radius:.4rem; border:1px solid #dbe0ea;}
+  .dropzone{border:2px dashed #cfd6e4; border-radius:.9rem; padding:1.6rem; text-align:center; color:#7b8398; font-size:.85rem; margin-bottom:1rem; cursor:pointer; background:#f7f8fc;}
+  .dropzone:hover{border-color:#f2a93b; color:#5b6478;}
+  .dropzone .icon{width:1.8rem; height:1.8rem; margin-bottom:.4rem; color:#a9b1c4;}
+
+  .swatches{display:flex; gap:.5rem; flex-wrap:wrap;}
+  .swatch{width:2.2rem; height:2.2rem; border-radius:50%; border:2px solid #fff; box-shadow:0 0 0 1px #dbe0ea; cursor:pointer;}
+  .swatch.sel{box-shadow:0 0 0 2px #1c2333;}
+  .logo-uploader{display:flex; align-items:center; gap:1rem;}
+  .logo-preview{width:4.4rem; height:4.4rem; border-radius:.8rem; background:#0c1220; display:flex; align-items:center; justify-content:center; overflow:hidden; border:1px solid #dbe0ea;}
+  .logo-preview img{width:100%; height:100%; object-fit:cover;}
+  .logo-preview .icon{width:2rem; height:2rem; color:#5c6f96;}
+  .toast{position:fixed; bottom:1.4rem; right:1.4rem; background:#1c2333; color:#fff; padding:.7rem 1.1rem; border-radius:.7rem; font-size:.85rem; z-index:400; opacity:0; transform:translateY(8px); transition:.25s;}
+  .toast.show{opacity:1; transform:translateY(0);}
+  .tip{background:#fff8e9; border:1px solid #f3e2b3; color:#7a5b12; font-size:.8rem; border-radius:.7rem; padding:.7rem .9rem; margin-bottom:1rem;}
+  .kbd{font-family:monospace; background:#eef0f6; border:1px solid #dbe0ea; border-radius:.3rem; padding:0 .3rem;}
+
+  ::-webkit-scrollbar{width:8px; height:8px;}
+  ::-webkit-scrollbar-thumb{background:#c8cfdd; border-radius:6px;}
+
+  @media (max-width:1100px){
+    #kiosk{grid-template-columns:1fr 22rem;}
+    .admin-nav{width:12rem;}
+  }
+</style>
+</head>
+<body>
+
+<!-- ============ SVG ICON SPRITE ============ -->
+<svg style="display:none">
+  <symbol id="i-school" viewBox="0 0 24 24"><path d="M12 3 2 8l10 5 10-5-10-5Z"/><path d="M6 10.5V16c0 1.5 2.7 3 6 3s6-1.5 6-3v-5.5"/><path d="M22 8v6"/></symbol>
+  <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.4"/><path d="M5 20c1-3.8 4-5.6 7-5.6s6 1.8 7 5.6"/></symbol>
+  <symbol id="i-bell" viewBox="0 0 24 24"><path d="M12 3c-2.8 0-5 2.4-5 5.3v3.4l-1.8 3.1h13.6L17 11.7V8.3C17 5.4 14.8 3 12 3Z"/><path d="M10 19.5a2 2 0 0 0 4 0"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.4M12 19.1v2.4M4.5 12H2.1M21.9 12h-2.4M5.6 5.6l1.7 1.7M16.7 16.7l1.7 1.7M18.4 5.6l-1.7 1.7M7.3 16.7l-1.7 1.7"/></symbol>
+  <symbol id="i-cloud" viewBox="0 0 24 24"><path d="M7 18h10.5a3.8 3.8 0 0 0 .4-7.6A5.5 5.5 0 0 0 7.3 9.2 4.2 4.2 0 0 0 7 18Z"/></symbol>
+  <symbol id="i-cloud-sun" viewBox="0 0 24 24"><circle cx="7.5" cy="7" r="2.6"/><path d="M7.5 2.6v1.4M3.8 7H2.4M4.6 3.6l1 1M10.4 3.6l-1 1"/><path d="M9 18h9a3.3 3.3 0 0 0 .3-6.6 4.8 4.8 0 0 0-9-1.6A3.7 3.7 0 0 0 9 18Z"/></symbol>
+  <symbol id="i-cloud-rain" viewBox="0 0 24 24"><path d="M6.5 15h11a3.8 3.8 0 0 0 .4-7.6 5.5 5.5 0 0 0-10.6-1.2A4.2 4.2 0 0 0 6.5 15Z"/><path d="M8 18.5 7 21M12 18.5l-1 2.5M16 18.5l-1 2.5"/></symbol>
+  <symbol id="i-cloud-snow" viewBox="0 0 24 24"><path d="M6.5 14h11a3.8 3.8 0 0 0 .4-7.6 5.5 5.5 0 0 0-10.6-1.2A4.2 4.2 0 0 0 6.5 14Z"/><path d="M8 17.5v3M12 17.5v3M16 17.5v3M6.5 19h3M10.5 19h3M14.5 19h3"/></symbol>
+  <symbol id="i-module" viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"/><path d="M14.5 3v4.5H19M9 12h6M9 15.5h6"/></symbol>
+  <symbol id="i-mega" viewBox="0 0 24 24"><path d="M3 10v4h3l6 4V6L6 10H3Z"/><path d="M15 8.5a4 4 0 0 1 0 7M17.5 5.5a7.8 7.8 0 0 1 0 13"/></symbol>
+  <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.1"/><path d="M12 3.5v2.2M12 18.3v2.2M20.5 12h-2.2M5.7 12H3.5M17.7 6.3l-1.5 1.5M7.8 16.2l-1.5 1.5M17.7 17.7l-1.5-1.5M7.8 7.8 6.3 6.3"/></symbol>
+  <symbol id="i-image" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.6"/><path d="m4 17 5-5 3.5 3.5L17 11l3 3"/></symbol>
+  <symbol id="i-video" viewBox="0 0 24 24"><rect x="3" y="6" width="13" height="12" rx="2"/><path d="m21 9-5 3 5 3V9Z"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4.6c0-.6.5-1.1 1.1-1.1h3.8c.6 0 1.1.5 1.1 1.1V7M6 7l1 12.4c0 .9.8 1.6 1.7 1.6h6.6c.9 0 1.7-.7 1.7-1.6L18 7"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-logout" viewBox="0 0 24 24"><path d="M9 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h3M16 16l4-4-4-4M20 12H9"/></symbol>
+  <symbol id="i-back" viewBox="0 0 24 24"><path d="M19 12H5M11 6l-6 6 6 6"/></symbol>
+  <symbol id="i-expand" viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></symbol>
+  <symbol id="i-up" viewBox="0 0 24 24"><path d="M12 19V5M6 11l6-6 6 6"/></symbol>
+  <symbol id="i-down" viewBox="0 0 24 24"><path d="M12 5v14M6 13l6 6 6-6"/></symbol>
+  <symbol id="i-key" viewBox="0 0 24 24"><circle cx="8" cy="15" r="3.2"/><path d="M10.3 12.7 18 5M15.5 8l2 2M18.5 5l2 2"/></symbol>
+  <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5M5 20h14"/></symbol>
+  <symbol id="i-upload2" viewBox="0 0 24 24"><path d="M12 21V9M7 14l5-5 5 5M5 4h14"/></symbol>
+  <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.01"/></symbol>
+  <symbol id="i-eye" viewBox="0 0 24 24"><circle cx="7.5" cy="7" r="2.6"/><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7Z"/></symbol>
+</svg>
+
+<!-- ============ KIOSK (display) ============ -->
+<div id="kiosk">
+  <div class="topbar">
+    <div class="brand">
+      <div class="brand-logo" id="brandLogo"><svg class="icon"><use href="#i-school"/></svg></div>
+      <div>
+        <div class="brand-name" id="brandName">Okul Adınız</div>
+        <div class="brand-sub" id="brandSub">Dijital Bilgi Panosu</div>
+      </div>
+    </div>
+    <div class="clockbox">
+      <div class="clock-time" id="clockTime">00:00:00</div>
+      <div class="clock-date" id="clockDate">-</div>
+    </div>
+  </div>
+
+  <div class="media" id="mediaArea">
+    <div class="slide" id="slideA"></div>
+    <div class="slide" id="slideB"></div>
+    <div class="media-caption" id="mediaCaption"></div>
+    <div class="media-empty" id="mediaEmpty">
+      <svg class="icon"><use href="#i-image"/></svg>
+      <span>Görsel ve video eklemek için yönetim panelini kullanın</span>
+    </div>
+  </div>
+
+  <div class="side">
+    <div class="panel">
+      <div class="panel-head"><svg class="icon"><use href="#i-user"/></svg>Nöbetçi personel</div>
+      <div id="dutyList"></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head"><svg class="icon"><use href="#i-bell"/></svg>Ders programı</div>
+      <div class="sched-hero">
+        <span class="sched-hero-label" id="schedLabel">Bilgi bekleniyor</span>
+        <span class="sched-hero-time" id="schedCountdown">--:--</span>
+      </div>
+      <div class="sched-bar"><div class="sched-bar-fill" id="schedBarFill"></div></div>
+      <div class="sched-list" id="schedList"></div>
+    </div>
+
+    <div class="duo">
+      <div class="panel">
+        <div class="panel-head"><svg class="icon" id="weatherHeadIcon"><use href="#i-cloud-sun"/></svg>Hava durumu</div>
+        <svg class="icon weather-icon" id="weatherIcon"><use href="#i-cloud-sun"/></svg>
+        <div class="weather-temp" id="weatherTemp">--°</div>
+        <div class="weather-cond" id="weatherCond">-</div>
+        <div class="weather-meta">
+          <span id="weatherFeels">Hissedilen --°</span>
+        </div>
+        <div class="weather-meta" id="weatherMinMax"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><svg class="icon"><use href="#i-module"/></svg>Bilgilendirme</div>
+        <div class="module-title" id="moduleTitle">-</div>
+        <div class="module-text" id="moduleText">-</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ticker">
+    <div class="ticker-tag"><svg class="icon"><use href="#i-mega"/></svg>Duyuru</div>
+    <div class="ticker-track">
+      <div class="ticker-move" id="tickerMove"></div>
+    </div>
+  </div>
+</div>
+
+<div class="kiosk-controls" id="kioskControls">
+  <button class="ctrl-btn" id="btnFullscreen" title="Tam ekran"><svg class="icon"><use href="#i-expand"/></svg></button>
+  <button class="ctrl-btn" id="btnAdminOpen" title="Yönetim paneli"><svg class="icon"><use href="#i-gear"/></svg></button>
+</div>
+
+<!-- ============ LOGIN ============ -->
+<div id="loginModal">
+  <div class="login-card">
+    <h2>Yönetim Girişi</h2>
+    <p>Panoyu düzenlemek için kullanıcı adı ve şifrenizi girin.</p>
+    <div class="field">
+      <label for="loginUser">Kullanıcı adı</label>
+      <input type="text" id="loginUser" autocomplete="username" />
+    </div>
+    <div class="field">
+      <label for="loginPass">Şifre</label>
+      <input type="password" id="loginPass" autocomplete="current-password" />
+    </div>
+    <button class="btn primary block" id="btnLoginSubmit"><svg class="icon"><use href="#i-key"/></svg>Giriş yap</button>
+    <div class="login-error" id="loginError"></div>
+    <div class="login-hint" id="loginHint"></div>
+    <button class="btn ghost block" id="btnLoginCancel" style="margin-top:.6rem;">Vazgeç</button>
+  </div>
+</div>
+
+<!-- ============ ADMIN PANEL ============ -->
+<div id="adminPanel">
+  <div class="admin-nav">
+    <div class="admin-brand"><svg class="icon"><use href="#i-school"/></svg><b>Pano Yönetimi</b></div>
+    <button class="nav-btn active" data-tab="genel"><svg class="icon"><use href="#i-gear"/></svg>Genel &amp; kimlik</button>
+    <button class="nav-btn" data-tab="medya"><svg class="icon"><use href="#i-image"/></svg>Medya galerisi</button>
+    <button class="nav-btn" data-tab="nobet"><svg class="icon"><use href="#i-user"/></svg>Nöbetçi personel</button>
+    <button class="nav-btn" data-tab="ders"><svg class="icon"><use href="#i-bell"/></svg>Ders programı</button>
+    <button class="nav-btn" data-tab="hava"><svg class="icon"><use href="#i-cloud-sun"/></svg>Hava durumu</button>
+    <button class="nav-btn" data-tab="duyuru"><svg class="icon"><use href="#i-mega"/></svg>Duyuru şeridi</button>
+    <button class="nav-btn" data-tab="modul"><svg class="icon"><use href="#i-module"/></svg>Özel modül</button>
+    <button class="nav-btn" data-tab="hesap"><svg class="icon"><use href="#i-key"/></svg>Hesap &amp; yedekleme</button>
+    <div class="admin-nav-bottom">
+      <button class="btn ghost block" id="btnBackToKiosk" style="color:#d7deee; border-color:rgba(255,255,255,.18);"><svg class="icon"><use href="#i-back"/></svg>Panoyu görüntüle</button>
+      <button class="btn ghost block" id="btnLogout" style="color:#d7deee; border-color:rgba(255,255,255,.18);"><svg class="icon"><use href="#i-logout"/></svg>Çıkış yap</button>
+    </div>
+  </div>
+
+  <div class="admin-main">
+
+    <!-- GENEL -->
+    <section class="tab-panel" id="tab-genel">
+      <div class="admin-head"><div><h1>Genel &amp; kimlik</h1><p>Okul adı, logo ve panonun renk kimliğini buradan ayarlayın.</p></div></div>
+      <div class="card">
+        <h3>Okul bilgileri</h3>
+        <p class="desc">Üst bardaki isim ve alt başlık.</p>
+        <div class="grid2">
+          <div class="field"><label>Okul adı</label><input type="text" id="fSchoolName" /></div>
+          <div class="field"><label>Alt başlık</label><input type="text" id="fSchoolSub" /></div>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Logo</h3>
+        <p class="desc">Kare formatta bir görsel önerilir (PNG/JPG).</p>
+        <div class="logo-uploader">
+          <div class="logo-preview" id="logoPreview"><svg class="icon"><use href="#i-school"/></svg></div>
+          <div>
+            <input type="file" id="fLogoFile" accept="image/*" style="display:none" />
+            <button class="btn" id="btnLogoPick"><svg class="icon"><use href="#i-upload2"/></svg>Logo yükle</button>
+            <button class="btn danger" id="btnLogoClear">Kaldır</button>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Renk kimliği</h3>
+        <p class="desc">Panonun vurgu rengini okulunuzun kurumsal renklerine göre seçin.</p>
+        <div class="swatches" id="swatches"></div>
+        <div class="field" style="margin-top:.9rem; max-width:12rem;"><label>Özel renk (hex)</label><input type="text" id="fAccentCustom" placeholder="#f2a93b" /></div>
+      </div>
+      <div class="tip"><svg class="icon" style="width:1rem;height:1rem;vertical-align:-2px;"><use href="#i-info"/></svg>
+        Kiosk kurulumu için: Chrome/Edge tarayıcısını <span class="kbd">--kiosk</span> parametresiyle bu dosyanın yolunu vererek açabilir, ekran koruyucu ve uyku modunu kapatarak sürekli yayın sağlayabilirsiniz.
+      </div>
+      <button class="btn primary" id="btnSaveGenel"><svg class="icon"><use href="#i-check" /></svg>Kaydet</button>
+    </section>
+
+    <!-- MEDYA -->
+    <section class="tab-panel" id="tab-medya" style="display:none">
+      <div class="admin-head"><div><h1>Medya galerisi</h1><p>Ortadaki büyük alanda geçiş efektleriyle sırayla gösterilecek görsel ve videolar.</p></div></div>
+      <div class="card">
+        <div class="dropzone" id="dropzone">
+          <svg class="icon"><use href="#i-upload2"/></svg><br/>
+          Görsel veya video seçmek için tıklayın (birden fazla dosya seçebilirsiniz)
+          <input type="file" id="fMediaFiles" accept="image/*,video/*" multiple style="display:none" />
+        </div>
+        <div class="media-grid" id="mediaGrid"></div>
+      </div>
+    </section>
+
+    <!-- NÖBET -->
+    <section class="tab-panel" id="tab-nobet" style="display:none">
+      <div class="admin-head"><div><h1>Nöbetçi personel</h1><p>Konum ve nöbetçi ad-soyad listesi.</p></div>
+        <button class="btn" id="btnAddDuty"><svg class="icon"><use href="#i-plus"/></svg>Satır ekle</button>
+      </div>
+      <div class="card"><div class="row-list" id="dutyRows"></div></div>
+      <button class="btn primary" id="btnSaveDuty"><svg class="icon"><use href="#i-check"/></svg>Kaydet</button>
+    </section>
+
+    <!-- DERS -->
+    <section class="tab-panel" id="tab-ders" style="display:none">
+      <div class="admin-head"><div><h1>Ders programı ve zil</h1><p>Panoda kalan süre otomatik hesaplanır; teneffüsleri işaretleyin.</p></div>
+        <button class="btn" id="btnAddSched"><svg class="icon"><use href="#i-plus"/></svg>Satır ekle</button>
+      </div>
+      <div class="card"><div class="row-list" id="schedRows"></div></div>
+      <button class="btn primary" id="btnSaveSched"><svg class="icon"><use href="#i-check"/></svg>Kaydet</button>
+    </section>
+
+    <!-- HAVA -->
+    <section class="tab-panel" id="tab-hava" style="display:none">
+      <div class="admin-head"><div><h1>Hava durumu</h1><p>Pano tamamen çevrimdışı çalıştığından değerleri elle girin (istediğiniz sıklıkta güncelleyebilirsiniz).</p></div></div>
+      <div class="card">
+        <div class="grid3">
+          <div class="field"><label>Durum</label><input type="text" id="fWCond" placeholder="Parçalı bulutlu" /></div>
+          <div class="field"><label>Sembol</label>
+            <select id="fWIcon">
+              <option value="i-sun">Güneşli</option>
+              <option value="i-cloud-sun">Parçalı bulutlu</option>
+              <option value="i-cloud">Bulutlu</option>
+              <option value="i-cloud-rain">Yağmurlu</option>
+              <option value="i-cloud-snow">Karlı</option>
+            </select>
+          </div>
+          <div class="field"><label>Sıcaklık (°C)</label><input type="number" id="fWTemp" /></div>
+          <div class="field"><label>Hissedilen (°C)</label><input type="number" id="fWFeels" /></div>
+          <div class="field"><label>En yüksek (°C)</label><input type="number" id="fWMax" /></div>
+          <div class="field"><label>En düşük (°C)</label><input type="number" id="fWMin" /></div>
+        </div>
+      </div>
+      <button class="btn primary" id="btnSaveWeather"><svg class="icon"><use href="#i-check"/></svg>Kaydet</button>
+    </section>
+
+    <!-- DUYURU -->
+    <section class="tab-panel" id="tab-duyuru" style="display:none">
+      <div class="admin-head"><div><h1>Duyuru şeridi</h1><p>Alt kısımda büyük puntolarla kayan duyuru/haber metinleri.</p></div>
+        <button class="btn" id="btnAddTicker"><svg class="icon"><use href="#i-plus"/></svg>Duyuru ekle</button>
+      </div>
+      <div class="card"><div class="row-list" id="tickerRows"></div></div>
+      <button class="btn primary" id="btnSaveTicker"><svg class="icon"><use href="#i-check"/></svg>Kaydet</button>
+    </section>
+
+    <!-- MODUL -->
+    <section class="tab-panel" id="tab-modul" style="display:none">
+      <div class="admin-head"><div><h1>Özel modül</h1><p>Sağ alt köşede istediğiniz serbest metni gösterin (kurallar, günün sözü, uyarılar vb.).</p></div></div>
+      <div class="card">
+        <div class="field"><label>Başlık</label><input type="text" id="fModTitle" /></div>
+        <div class="field"><label>İçerik</label><textarea id="fModText" rows="6"></textarea></div>
+      </div>
+      <button class="btn primary" id="btnSaveModule"><svg class="icon"><use href="#i-check"/></svg>Kaydet</button>
+    </section>
+
+    <!-- HESAP -->
+    <section class="tab-panel" id="tab-hesap" style="display:none">
+      <div class="admin-head"><div><h1>Hesap &amp; yedekleme</h1><p>Giriş bilgilerinizi değiştirin veya ayarlarınızı yedekleyin.</p></div></div>
+      <div class="card">
+        <h3>Kullanıcı adı ve şifre</h3>
+        <p class="desc">Bu koruma yalnızca panoya yetkisiz yerel erişimi zorlaştırmak içindir.</p>
+        <div class="grid2">
+          <div class="field"><label>Yeni kullanıcı adı</label><input type="text" id="fNewUser" /></div>
+          <div class="field"><label>Yeni şifre</label><input type="password" id="fNewPass" /></div>
+        </div>
+        <div class="field" style="max-width:20rem;"><label>Mevcut şifre (onay için)</label><input type="password" id="fCurPass" /></div>
+        <button class="btn primary" id="btnSaveAuth"><svg class="icon"><use href="#i-key"/></svg>Bilgileri güncelle</button>
+        <div class="login-error" id="authError" style="margin-top:.6rem;"></div>
+      </div>
+      <div class="card">
+        <h3>Ayarları yedekle</h3>
+        <p class="desc">Metin/ayar verilerini dışa aktarın, başka bir ekrana içe aktarın. Görsel/video dosyaları bu yedeğe dahil değildir; her ekrana ayrıca yüklenmelidir.</p>
+        <button class="btn" id="btnExport"><svg class="icon"><use href="#i-download"/></svg>Dışa aktar (.json)</button>
+        <button class="btn" id="btnImportPick"><svg class="icon"><use href="#i-upload2"/></svg>İçe aktar</button>
+        <input type="file" id="fImportFile" accept="application/json" style="display:none" />
+      </div>
+    </section>
+
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ================= VARSAYILAN VERİ ================= */
+  var ACCENT_PRESETS = ["#f2a93b","#2dd4bf","#5b8def","#e05e6b","#8b6bf2","#4fbf6b"];
+
+  function defaultState(){
+    return {
+      auth: { user: "admin", pass: b64("admin123") },
+      brand: { name: "Okul Adınız", sub: "Dijital Bilgi Panosu", logo: "", accent: "#f2a93b" },
+      duty: [
+        {loc:"ZEMİN-A", name:"Ad Soyad"},
+        {loc:"ZEMİN-B", name:"Ad Soyad"},
+        {loc:"1.KAT-A", name:"Ad Soyad"},
+        {loc:"1.KAT-B", name:"Ad Soyad"},
+        {loc:"ÖNBAHÇE", name:"Ad Soyad"},
+        {loc:"ARKABAHÇE", name:"Ad Soyad"},
+        {loc:"İDARECİ", name:"Ad Soyad"}
+      ],
+      schedule: [
+        {name:"1. Ders", start:"08:30", end:"09:10", brk:false},
+        {name:"Teneffüs", start:"09:10", end:"09:20", brk:true},
+        {name:"2. Ders", start:"09:20", end:"10:00", brk:false},
+        {name:"Teneffüs", start:"10:00", end:"10:10", brk:true},
+        {name:"3. Ders", start:"10:10", end:"10:50", brk:false},
+        {name:"Teneffüs", start:"10:50", end:"11:00", brk:true},
+        {name:"4. Ders", start:"11:00", end:"11:40", brk:false},
+        {name:"Öğle Arası", start:"11:40", end:"12:30", brk:true},
+        {name:"5. Ders", start:"12:30", end:"13:10", brk:false},
+        {name:"Teneffüs", start:"13:10", end:"13:20", brk:true},
+        {name:"6. Ders", start:"13:20", end:"14:00", brk:false},
+        {name:"Teneffüs", start:"14:00", end:"14:10", brk:true},
+        {name:"7. Ders", start:"14:10", end:"14:50", brk:false}
+      ],
+      weather: {cond:"Parçalı bulutlu", icon:"i-cloud-sun", temp:22, feels:21, min:15, max:24},
+      ticker: [
+        "Bu alana okulunuza ait duyuruları ekleyebilirsiniz.",
+        "Yönetim panelinden istediğiniz kadar duyuru satırı ekleyip sıralayabilirsiniz."
+      ],
+      module: {title:"Bilgilendirme", text:"Bu alanı istediğiniz içerikle özelleştirebilirsiniz: nöbet kuralları, güvenlik uyarıları, günün sözü vb."},
+      media: []
+    };
+  }
+
+  function b64(s){ try{ return btoa(unescape(encodeURIComponent(s))); }catch(e){ return btoa(s); } }
+
+  var STORE_KEY = "panoState_v1";
+  var state = loadState();
+
+  function loadState(){
+    try{
+      var raw = localStorage.getItem(STORE_KEY);
+      if(!raw) { var d = defaultState(); localStorage.setItem(STORE_KEY, JSON.stringify(d)); return d; }
+      var parsed = JSON.parse(raw);
+      var d2 = defaultState();
+      for(var k in d2){ if(!(k in parsed)) parsed[k] = d2[k]; }
+      return parsed;
+    }catch(e){ return defaultState(); }
+  }
+  function saveState(){ localStorage.setItem(STORE_KEY, JSON.stringify(state)); }
+
+  function toast(msg){
+    var t = document.getElementById("toast");
+    t.textContent = msg; t.classList.add("show");
+    clearTimeout(t._h); t._h = setTimeout(function(){ t.classList.remove("show"); }, 2200);
+  }
+
+  /* ================= INDEXEDDB (medya) ================= */
+  var db = null;
+  var mediaUrls = {}; // id -> objectURL
+  function openDb(cb){
+    var req = indexedDB.open("panoMediaDB", 1);
+    req.onupgradeneeded = function(e){ e.target.result.createObjectStore("media", {keyPath:"id"}); };
+    req.onsuccess = function(e){ db = e.target.result; cb && cb(); };
+    req.onerror = function(){ toast("Medya veritabanı açılamadı."); };
+  }
+  function addMediaBlob(id, blob, cb){
+    var tx = db.transaction("media","readwrite");
+    tx.objectStore("media").put({id:id, blob:blob});
+    tx.oncomplete = cb;
+  }
+  function deleteMediaBlob(id, cb){
+    var tx = db.transaction("media","readwrite");
+    tx.objectStore("media").delete(id);
+    tx.oncomplete = cb;
+  }
+  function loadAllMediaBlobs(cb){
+    var tx = db.transaction("media","readonly");
+    var req = tx.objectStore("media").getAll();
+    req.onsuccess = function(){
+      (req.result||[]).forEach(function(rec){
+        mediaUrls[rec.id] = URL.createObjectURL(rec.blob);
+      });
+      cb && cb();
+    };
+  }
+
+  function genId(){ return "m" + Date.now() + Math.random().toString(36).slice(2,8); }
+
+  /* ================= SAAT / TARİH ================= */
+  var GUNLER = ["Pazar","Pazartesi","Salı","Çarşamba","Perşembe","Cuma","Cumartesi"];
+  var AYLAR = ["Ocak","Şubat","Mart","Nisan","Mayıs","Haziran","Temmuz","Ağustos","Eylül","Ekim","Kasım","Aralık"];
+  function pad(n){ return n<10 ? "0"+n : ""+n; }
+  function tickClock(){
+    var d = new Date();
+    document.getElementById("clockTime").textContent = pad(d.getHours())+":"+pad(d.getMinutes())+":"+pad(d.getSeconds());
+    document.getElementById("clockDate").textContent = d.getDate()+" "+AYLAR[d.getMonth()]+" "+d.getFullYear()+" "+GUNLER[d.getDay()];
+  }
+
+  /* ================= RENDER: BRAND ================= */
+  function renderBrand(){
+    document.documentElement.style.setProperty("--accent", state.brand.accent || "#f2a93b");
+    document.getElementById("brandName").textContent = state.brand.name || "Okul Adınız";
+    document.getElementById("brandSub").textContent = state.brand.sub || "Dijital Bilgi Panosu";
+    var logoEl = document.getElementById("brandLogo");
+    logoEl.innerHTML = state.brand.logo ? '<img src="'+state.brand.logo+'" alt="logo"/>' : '<svg class="icon"><use href="#i-school"/></svg>';
+  }
+
+  /* ================= RENDER: DUTY ================= */
+  function renderDuty(){
+    var wrap = document.getElementById("dutyList");
+    wrap.innerHTML = "";
+    (state.duty||[]).forEach(function(row){
+      var div = document.createElement("div");
+      div.className = "duty-row";
+      div.innerHTML = '<span class="duty-tag">'+escapeHtml(row.loc)+'</span><span class="duty-name">'+escapeHtml(row.name)+'</span>';
+      wrap.appendChild(div);
+    });
+  }
+
+  /* ================= RENDER: SCHEDULE ================= */
+  function toMinutes(hhmm){ var p = hhmm.split(":"); return (+p[0])*60 + (+p[1]); }
+  function renderScheduleList(){
+    var wrap = document.getElementById("schedList");
+    wrap.innerHTML = "";
+    var nowMin = (function(){ var d=new Date(); return d.getHours()*60+d.getMinutes(); })();
+    (state.schedule||[]).forEach(function(p){
+      var isNow = nowMin >= toMinutes(p.start) && nowMin < toMinutes(p.end);
+      var el = document.createElement("div");
+      el.className = "sched-item" + (isNow?" now":"") + (p.brk?" brk":"");
+      el.innerHTML = "<span>"+escapeHtml(p.name)+"</span><span>"+p.start+" - "+p.end+"</span>";
+      wrap.appendChild(el);
+    });
+  }
+  function tickSchedule(){
+    var list = (state.schedule||[]).slice().sort(function(a,b){ return toMinutes(a.start)-toMinutes(b.start); });
+    var now = new Date();
+    var nowMin = now.getHours()*60+now.getMinutes()+now.getSeconds()/60;
+    var label = document.getElementById("schedLabel");
+    var cd = document.getElementById("schedCountdown");
+    var fill = document.getElementById("schedBarFill");
+    var current = null, next = null;
+    for(var i=0;i<list.length;i++){
+      var s = toMinutes(list[i].start), e = toMinutes(list[i].end);
+      if(nowMin>=s && nowMin<e){ current = list[i]; break; }
+    }
+    if(!current){
+      for(var j=0;j<list.length;j++){ if(toMinutes(list[j].start) > nowMin){ next = list[j]; break; } }
+    }
+    if(current){
+      var remain = toMinutes(current.end) - nowMin;
+      var total = toMinutes(current.end) - toMinutes(current.start);
+      var progress = 1 - (remain/total);
+      fill.style.width = Math.max(0,Math.min(100,progress*100)) + "%";
+      label.textContent = (current.brk ? current.name+" bitişine" : current.name+" bitişine");
+      cd.textContent = fmtRemain(remain);
+    } else if(next){
+      var remain2 = toMinutes(next.start) - nowMin;
+      fill.style.width = "0%";
+      label.textContent = next.name + " başlangıcına";
+      cd.textContent = fmtRemain(remain2);
+    } else {
+      fill.style.width = "100%";
+      label.textContent = "Bugünkü ders programı tamamlandı";
+      cd.textContent = "--:--";
+    }
+  }
+  function fmtRemain(mins){
+    if(mins<0) mins=0;
+    var h = Math.floor(mins/60), m = Math.floor(mins%60), s = Math.floor((mins*60)%60);
+    return h>0 ? (pad(h)+":"+pad(m)+":"+pad(s)) : (pad(m)+":"+pad(s));
+  }
+
+  /* ================= RENDER: WEATHER ================= */
+  function renderWeather(){
+    var w = state.weather||{};
+    document.getElementById("weatherIcon").innerHTML = '<use href="#'+(w.icon||"i-cloud-sun")+'"/>';
+    document.getElementById("weatherHeadIcon").innerHTML = '<use href="#'+(w.icon||"i-cloud-sun")+'"/>';
+    document.getElementById("weatherTemp").textContent = (w.temp!=null?w.temp:"--")+"°";
+    document.getElementById("weatherCond").textContent = w.cond||"-";
+    document.getElementById("weatherFeels").textContent = "Hissedilen "+(w.feels!=null?w.feels:"--")+"°";
+    document.getElementById("weatherMinMax").textContent = "Y: "+(w.max!=null?w.max:"--")+"° D: "+(w.min!=null?w.min:"--")+"°";
+  }
+
+  /* ================= RENDER: MODULE ================= */
+  function renderModule(){
+    document.getElementById("moduleTitle").textContent = state.module.title||"";
+    document.getElementById("moduleText").textContent = state.module.text||"";
+  }
+
+  /* ================= RENDER: TICKER ================= */
+  function renderTicker(){
+    var items = (state.ticker||[]).filter(function(s){ return s && s.trim(); });
+    if(items.length===0) items = ["Duyuru eklemek için yönetim panelini kullanın."];
+    var text = items.join("     •     ");
+    var move = document.getElementById("tickerMove");
+    move.innerHTML = "<span>"+escapeHtml(text)+"</span><span>"+escapeHtml(text)+"</span>";
+    var dur = Math.max(18, text.length*0.16);
+    move.style.animationDuration = dur+"s";
+  }
+
+  /* ================= MEDYA / SLIDESHOW ================= */
+  var slideIdx = -1;
+  var activeIsA = true;
+  var slideTimer = null;
+
+  function renderMediaEmptyState(){
+    document.getElementById("mediaEmpty").style.display = (state.media||[]).length ? "none" : "flex";
+  }
+
+  function startSlideshow(){
+    clearTimeout(slideTimer);
+    renderMediaEmptyState();
+    if(!state.media || state.media.length===0) return;
+    slideIdx = -1;
+    advanceSlide();
+  }
+
+  function advanceSlide(){
+    if(!state.media || state.media.length===0) return;
+    slideIdx = (slideIdx+1) % state.media.length;
+    var item = state.media[slideIdx];
+    var showId = activeIsA ? "slideA" : "slideB";
+    var hideId = activeIsA ? "slideB" : "slideA";
+    var showEl = document.getElementById(showId);
+    var hideEl = document.getElementById(hideId);
+    var url = mediaUrls[item.id];
+
+    showEl.innerHTML = "";
+    var mediaEl;
+    if(item.type === "video"){
+      mediaEl = document.createElement("video");
+      mediaEl.src = url; mediaEl.muted = true; mediaEl.autoplay = true; mediaEl.playsInline = true;
+    } else {
+      mediaEl = document.createElement("img");
+      mediaEl.src = url;
+    }
+    showEl.appendChild(mediaEl);
+    showEl.classList.add("active");
+    hideEl.classList.remove("active");
+
+    var caption = document.getElementById("mediaCaption");
+    if(item.caption){ caption.textContent = item.caption; caption.classList.add("show"); }
+    else { caption.classList.remove("show"); }
+
+    activeIsA = !activeIsA;
+
+    var holdMs;
+    if(item.type === "video"){
+      holdMs = (item.duration && item.duration>0) ? item.duration*1000 : 30000;
+      mediaEl.addEventListener("ended", function(){ clearTimeout(slideTimer); advanceSlide(); });
+    } else {
+      holdMs = (item.duration && item.duration>0) ? item.duration*1000 : 8000;
+    }
+    clearTimeout(slideTimer);
+    slideTimer = setTimeout(advanceSlide, holdMs);
+  }
+
+  /* ================= YARDIMCI ================= */
+  function escapeHtml(s){
+    return (s==null?"":String(s)).replace(/[&<>"']/g, function(c){
+      return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];
+    });
+  }
+
+  function renderAll(){
+    renderBrand(); renderDuty(); renderScheduleList(); renderWeather(); renderModule(); renderTicker();
+  }
+
+  /* ================= KIOSK KONTROLLERİ ================= */
+  var controls = document.getElementById("kioskControls");
+  var hideTimer = null;
+  function showControls(){
+    controls.classList.add("show");
+    clearTimeout(hideTimer);
+    hideTimer = setTimeout(function(){ controls.classList.remove("show"); }, 3500);
+  }
+  document.addEventListener("mousemove", showControls);
+  document.addEventListener("touchstart", showControls);
+
+  document.getElementById("btnFullscreen").addEventListener("click", function(){
+    if(!document.fullscreenElement){ document.documentElement.requestFullscreen && document.documentElement.requestFullscreen(); }
+    else { document.exitFullscreen && document.exitFullscreen(); }
+  });
+  document.getElementById("btnAdminOpen").addEventListener("click", openLogin);
+
+  /* ================= GİRİŞ ================= */
+  var loginModal = document.getElementById("loginModal");
+  function openLogin(){
+    document.getElementById("loginUser").value = "";
+    document.getElementById("loginPass").value = "";
+    document.getElementById("loginError").textContent = "";
+    var hint = document.getElementById("loginHint");
+    hint.textContent = (state.auth.user==="admin" && state.auth.pass===b64("admin123"))
+      ? "İlk kurulum: admin / admin123 ile giriş yapıp bilgilerinizi Hesap sekmesinden değiştirebilirsiniz."
+      : "";
+    loginModal.classList.add("show");
+    document.getElementById("loginUser").focus();
+  }
+  function closeLogin(){ loginModal.classList.remove("show"); }
+  document.getElementById("btnLoginCancel").addEventListener("click", closeLogin);
+  document.getElementById("btnLoginSubmit").addEventListener("click", doLogin);
+  document.getElementById("loginPass").addEventListener("keydown", function(e){ if(e.key==="Enter") doLogin(); });
+  function doLogin(){
+    var u = document.getElementById("loginUser").value.trim();
+    var p = document.getElementById("loginPass").value;
+    if(u === state.auth.user && b64(p) === state.auth.pass){
+      closeLogin(); openAdmin();
+    } else {
+      document.getElementById("loginError").textContent = "Kullanıcı adı veya şifre hatalı.";
+    }
+  }
+
+  /* ================= ADMIN PANEL AÇ/KAPA ================= */
+  var adminPanel = document.getElementById("adminPanel");
+  function openAdmin(){
+    if(document.fullscreenElement) document.exitFullscreen && document.exitFullscreen();
+    fillAdminForms();
+    adminPanel.classList.add("show");
+  }
+  function closeAdmin(){ adminPanel.classList.remove("show"); renderAll(); }
+  document.getElementById("btnBackToKiosk").addEventListener("click", closeAdmin);
+  document.getElementById("btnLogout").addEventListener("click", closeAdmin);
+
+  document.querySelectorAll(".nav-btn").forEach(function(btn){
+    btn.addEventListener("click", function(){
+      document.querySelectorAll(".nav-btn").forEach(function(b){ b.classList.remove("active"); });
+      btn.classList.add("active");
+      document.querySelectorAll(".tab-panel").forEach(function(p){ p.style.display = "none"; });
+      document.getElementById("tab-"+btn.dataset.tab).style.display = "block";
+    });
+  });
+
+  document.addEventListener("keydown", function(e){
+    if(e.key === "Escape" && adminPanel.classList.contains("show")) closeAdmin();
+    if(e.key === "Escape" && loginModal.classList.contains("show")) closeLogin();
+  });
+
+  /* ================= ADMIN: FORMLARI DOLDUR ================= */
+  function fillAdminForms(){
+    document.getElementById("fSchoolName").value = state.brand.name||"";
+    document.getElementById("fSchoolSub").value = state.brand.sub||"";
+    document.getElementById("logoPreview").innerHTML = state.brand.logo ? '<img src="'+state.brand.logo+'"/>' : '<svg class="icon"><use href="#i-school"/></svg>';
+    buildSwatches();
+
+    renderDutyRows(); renderSchedRows(); renderTickerRows(); renderMediaGrid();
+
+    document.getElementById("fWCond").value = state.weather.cond||"";
+    document.getElementById("fWIcon").value = state.weather.icon||"i-cloud-sun";
+    document.getElementById("fWTemp").value = state.weather.temp!=null?state.weather.temp:"";
+    document.getElementById("fWFeels").value = state.weather.feels!=null?state.weather.feels:"";
+    document.getElementById("fWMax").value = state.weather.max!=null?state.weather.max:"";
+    document.getElementById("fWMin").value = state.weather.min!=null?state.weather.min:"";
+
+    document.getElementById("fModTitle").value = state.module.title||"";
+    document.getElementById("fModText").value = state.module.text||"";
+
+    document.getElementById("fNewUser").value = state.auth.user||"";
+    document.getElementById("fNewPass").value = "";
+    document.getElementById("fCurPass").value = "";
+  }
+
+  function buildSwatches(){
+    var wrap = document.getElementById("swatches");
+    wrap.innerHTML = "";
+    ACCENT_PRESETS.forEach(function(c){
+      var d = document.createElement("div");
+      d.className = "swatch" + (state.brand.accent===c ? " sel":"");
+      d.style.background = c;
+      d.addEventListener("click", function(){
+        state.brand.accent = c;
+        document.getElementById("fAccentCustom").value = "";
+        buildSwatches();
+      });
+      wrap.appendChild(d);
+    });
+    document.getElementById("fAccentCustom").value = ACCENT_PRESETS.indexOf(state.brand.accent)===-1 ? state.brand.accent : "";
+  }
+
+  /* ---- Genel kaydet ---- */
+  document.getElementById("btnLogoPick").addEventListener("click", function(){ document.getElementById("fLogoFile").click(); });
+  document.getElementById("fLogoFile").addEventListener("change", function(e){
+    var f = e.target.files[0]; if(!f) return;
+    var reader = new FileReader();
+    reader.onload = function(ev){
+      state.brand.logo = ev.target.result;
+      document.getElementById("logoPreview").innerHTML = '<img src="'+state.brand.logo+'"/>';
+    };
+    reader.readAsDataURL(f);
+  });
+  document.getElementById("btnLogoClear").addEventListener("click", function(){
+    state.brand.logo = "";
+    document.getElementById("logoPreview").innerHTML = '<svg class="icon"><use href="#i-school"/></svg>';
+  });
+  document.getElementById("fAccentCustom").addEventListener("input", function(e){
+    var v = e.target.value.trim();
+    if(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(v)){ state.brand.accent = v; buildSwatches(); document.getElementById("fAccentCustom").value = v; }
+  });
+  document.getElementById("btnSaveGenel").addEventListener("click", function(){
+    state.brand.name = document.getElementById("fSchoolName").value.trim() || "Okul Adınız";
+    state.brand.sub = document.getElementById("fSchoolSub").value.trim();
+    saveState(); renderBrand(); toast("Genel ayarlar kaydedildi.");
+  });
+
+  /* ---- Nöbetçi ---- */
+  function renderDutyRows(){
+    var wrap = document.getElementById("dutyRows");
+    wrap.innerHTML = "";
+    state.duty.forEach(function(row,i){
+      var el = document.createElement("div");
+      el.className = "row-item";
+      el.innerHTML =
+        '<input class="mini" data-f="loc" value="'+escapeHtml(row.loc)+'" placeholder="Konum" />'+
+        '<input data-f="name" value="'+escapeHtml(row.name)+'" placeholder="Ad Soyad" />'+
+        '<button class="iconbtn del" title="Sil"><svg class="icon"><use href="#i-trash"/></svg></button>';
+      el.querySelector('[data-f="loc"]').addEventListener("input", function(e){ row.loc = e.target.value; });
+      el.querySelector('[data-f="name"]').addEventListener("input", function(e){ row.name = e.target.value; });
+      el.querySelector(".del").addEventListener("click", function(){ state.duty.splice(i,1); renderDutyRows(); });
+      wrap.appendChild(el);
+    });
+  }
+  document.getElementById("btnAddDuty").addEventListener("click", function(){
+    state.duty.push({loc:"KONUM", name:"Ad Soyad"}); renderDutyRows();
+  });
+  document.getElementById("btnSaveDuty").addEventListener("click", function(){
+    saveState(); renderDuty(); toast("Nöbetçi listesi kaydedildi.");
+  });
+
+  /* ---- Ders programı ---- */
+  function renderSchedRows(){
+    var wrap = document.getElementById("schedRows");
+    wrap.innerHTML = "";
+    state.schedule.forEach(function(row,i){
+      var el = document.createElement("div");
+      el.className = "row-item";
+      el.innerHTML =
+        '<input data-f="name" value="'+escapeHtml(row.name)+'" placeholder="Ders adı" />'+
+        '<input class="mini" type="time" data-f="start" value="'+row.start+'" />'+
+        '<input class="mini" type="time" data-f="end" value="'+row.end+'" />'+
+        '<label style="display:flex; align-items:center; gap:.3rem; font-size:.78rem; color:#5b6478; white-space:nowrap;"><input type="checkbox" data-f="brk" '+(row.brk?"checked":"")+' style="width:auto;"/>Teneffüs</label>'+
+        '<button class="iconbtn del" title="Sil"><svg class="icon"><use href="#i-trash"/></svg></button>';
+      el.querySelector('[data-f="name"]').addEventListener("input", function(e){ row.name = e.target.value; });
+      el.querySelector('[data-f="start"]').addEventListener("input", function(e){ row.start = e.target.value; });
+      el.querySelector('[data-f="end"]').addEventListener("input", function(e){ row.end = e.target.value; });
+      el.querySelector('[data-f="brk"]').addEventListener("change", function(e){ row.brk = e.target.checked; });
+      el.querySelector(".del").addEventListener("click", function(){ state.schedule.splice(i,1); renderSchedRows(); });
+      wrap.appendChild(el);
+    });
+  }
+  document.getElementById("btnAddSched").addEventListener("click", function(){
+    state.schedule.push({name:"Ders", start:"08:00", end:"08:40", brk:false}); renderSchedRows();
+  });
+  document.getElementById("btnSaveSched").addEventListener("click", function(){
+    saveState(); renderScheduleList(); toast("Ders programı kaydedildi.");
+  });
+
+  /* ---- Hava durumu ---- */
+  document.getElementById("btnSaveWeather").addEventListener("click", function(){
+    state.weather = {
+      cond: document.getElementById("fWCond").value.trim(),
+      icon: document.getElementById("fWIcon").value,
+      temp: numOrNull(document.getElementById("fWTemp").value),
+      feels: numOrNull(document.getElementById("fWFeels").value),
+      max: numOrNull(document.getElementById("fWMax").value),
+      min: numOrNull(document.getElementById("fWMin").value)
+    };
+    saveState(); renderWeather(); toast("Hava durumu kaydedildi.");
+  });
+  function numOrNull(v){ return v===""||v==null ? null : Number(v); }
+
+  /* ---- Duyuru ---- */
+  function renderTickerRows(){
+    var wrap = document.getElementById("tickerRows");
+    wrap.innerHTML = "";
+    state.ticker.forEach(function(txt,i){
+      var el = document.createElement("div");
+      el.className = "row-item";
+      el.innerHTML =
+        '<input data-f="t" value="'+escapeHtml(txt)+'" placeholder="Duyuru metni" />'+
+        '<button class="iconbtn del" title="Sil"><svg class="icon"><use href="#i-trash"/></svg></button>';
+      el.querySelector('[data-f="t"]').addEventListener("input", function(e){ state.ticker[i] = e.target.value; });
+      el.querySelector(".del").addEventListener("click", function(){ state.ticker.splice(i,1); renderTickerRows(); });
+      wrap.appendChild(el);
+    });
+  }
+  document.getElementById("btnAddTicker").addEventListener("click", function(){
+    state.ticker.push("Yeni duyuru metni"); renderTickerRows();
+  });
+  document.getElementById("btnSaveTicker").addEventListener("click", function(){
+    saveState(); renderTicker(); toast("Duyuru şeridi kaydedildi.");
+  });
+
+  /* ---- Özel modül ---- */
+  document.getElementById("btnSaveModule").addEventListener("click", function(){
+    state.module.title = document.getElementById("fModTitle").value.trim();
+    state.module.text = document.getElementById("fModText").value;
+    saveState(); renderModule(); toast("Özel modül kaydedildi.");
+  });
+
+  /* ---- Hesap ---- */
+  document.getElementById("btnSaveAuth").addEventListener("click", function(){
+    var errEl = document.getElementById("authError");
+    var cur = document.getElementById("fCurPass").value;
+    if(b64(cur) !== state.auth.pass){ errEl.textContent = "Mevcut şifre yanlış."; return; }
+    var newUser = document.getElementById("fNewUser").value.trim();
+    var newPass = document.getElementById("fNewPass").value;
+    if(!newUser){ errEl.textContent = "Kullanıcı adı boş olamaz."; return; }
+    state.auth.user = newUser;
+    if(newPass) state.auth.pass = b64(newPass);
+    saveState(); errEl.textContent = ""; toast("Giriş bilgileri güncellendi.");
+    document.getElementById("fCurPass").value = ""; document.getElementById("fNewPass").value = "";
+  });
+
+  /* ---- Dışa / içe aktar ---- */
+  document.getElementById("btnExport").addEventListener("click", function(){
+    var exportObj = JSON.parse(JSON.stringify(state));
+    var blob = new Blob([JSON.stringify(exportObj,null,2)], {type:"application/json"});
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "pano-ayarlari.json";
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  });
+  document.getElementById("btnImportPick").addEventListener("click", function(){ document.getElementById("fImportFile").click(); });
+  document.getElementById("fImportFile").addEventListener("change", function(e){
+    var f = e.target.files[0]; if(!f) return;
+    var reader = new FileReader();
+    reader.onload = function(ev){
+      try{
+        var imported = JSON.parse(ev.target.result);
+        imported.media = state.media; // medya dosyaları bu cihazda kalır
+        state = imported;
+        saveState(); fillAdminForms(); renderAll(); toast("Ayarlar içe aktarıldı.");
+      }catch(err){ toast("Dosya okunamadı, geçerli bir yedek dosyası seçin."); }
+    };
+    reader.readAsText(f);
+  });
+
+  /* ---- Medya galerisi ---- */
+  var dropzone = document.getElementById("dropzone");
+  dropzone.addEventListener("click", function(){ document.getElementById("fMediaFiles").click(); });
+  document.getElementById("fMediaFiles").addEventListener("change", function(e){
+    handleFiles(e.target.files); e.target.value = "";
+  });
+  dropzone.addEventListener("dragover", function(e){ e.preventDefault(); dropzone.style.borderColor = "#f2a93b"; });
+  dropzone.addEventListener("dragleave", function(){ dropzone.style.borderColor = ""; });
+  dropzone.addEventListener("drop", function(e){
+    e.preventDefault(); dropzone.style.borderColor = "";
+    handleFiles(e.dataTransfer.files);
+  });
+  function handleFiles(fileList){
+    var files = Array.prototype.slice.call(fileList);
+    var remaining = files.length;
+    if(!remaining) return;
+    files.forEach(function(f){
+      var isVideo = f.type.indexOf("video") === 0;
+      var isImage = f.type.indexOf("image") === 0;
+      if(!isVideo && !isImage){ remaining--; return; }
+      var id = genId();
+      addMediaBlob(id, f, function(){
+        state.media.push({id:id, type:isVideo?"video":"image", name:f.name, duration: isVideo?0:8, caption:""});
+        mediaUrls[id] = URL.createObjectURL(f);
+        remaining--;
+        if(remaining<=0){ saveState(); renderMediaGrid(); toast("Medya eklendi."); startSlideshow(); }
+      });
+    });
+  }
+  function renderMediaGrid(){
+    var wrap = document.getElementById("mediaGrid");
+    wrap.innerHTML = "";
+    state.media.forEach(function(item,i){
+      var card = document.createElement("div");
+      card.className = "media-card";
+      var thumbHtml = item.type==="video"
+        ? '<video src="'+mediaUrls[item.id]+'" muted></video>'
+        : '<img src="'+mediaUrls[item.id]+'" style="width:100%;height:100%;object-fit:cover;"/>';
+      card.innerHTML =
+        '<div class="thumb">'+thumbHtml+'</div>'+
+        '<div class="mc-body">'+
+          '<div class="mc-name" title="'+escapeHtml(item.name)+'">'+escapeHtml(item.name)+'</div>'+
+          '<div class="mc-row">'+
+            (item.type==="image" ? '<input type="number" min="2" data-f="dur" value="'+item.duration+'" title="Gösterim süresi (sn)"/><span style="font-size:.7rem;color:#8891a4;">sn</span>' : '<span style="font-size:.7rem;color:#8891a4;">video</span>')+
+            '<button class="iconbtn" data-a="up" title="Yukarı taşı"><svg class="icon"><use href="#i-up"/></svg></button>'+
+            '<button class="iconbtn" data-a="down" title="Aşağı taşı"><svg class="icon"><use href="#i-down"/></svg></button>'+
+            '<button class="iconbtn del" data-a="del" title="Sil"><svg class="icon"><use href="#i-trash"/></svg></button>'+
+          '</div>'+
+        '</div>';
+      var durInput = card.querySelector('[data-f="dur"]');
+      if(durInput) durInput.addEventListener("change", function(e){ item.duration = Number(e.target.value)||8; saveState(); });
+      card.querySelector('[data-a="up"]').addEventListener("click", function(){
+        if(i>0){ var tmp=state.media[i-1]; state.media[i-1]=state.media[i]; state.media[i]=tmp; saveState(); renderMediaGrid(); }
+      });
+      card.querySelector('[data-a="down"]').addEventListener("click", function(){
+        if(i<state.media.length-1){ var tmp=state.media[i+1]; state.media[i+1]=state.media[i]; state.media[i]=tmp; saveState(); renderMediaGrid(); }
+      });
+      card.querySelector('[data-a="del"]').addEventListener("click", function(){
+        deleteMediaBlob(item.id, function(){
+          URL.revokeObjectURL(mediaUrls[item.id]); delete mediaUrls[item.id];
+          state.media.splice(i,1); saveState(); renderMediaGrid(); startSlideshow();
+        });
+      });
+      wrap.appendChild(card);
+    });
+  }
+
+  /* ================= BAŞLAT ================= */
+  openDb(function(){
+    loadAllMediaBlobs(function(){
+      renderAll();
+      startSlideshow();
+      tickClock(); setInterval(tickClock, 1000);
+      tickSchedule(); setInterval(tickSchedule, 1000);
+      setInterval(renderScheduleList, 60000);
+      showControls();
+    });
+  });
+
+})();
+</script>
+</body>
+</html>
