@@ -221,7 +221,6 @@ table.t tbody tr:hover td{background:var(--panel2)}
 .duty td.wkc{width:48px;padding:0;text-align:center;font-weight:700;color:#fff;background:var(--wc);border-radius:10px 0 0 10px;letter-spacing:.06em;font-size:12.5px}
 .duty td.wkc span{display:inline-block;writing-mode:vertical-rl;transform:rotate(180deg);white-space:nowrap}
 .duty tr.w td:not(.wkc){background:color-mix(in srgb,var(--wc) 6%,var(--panel))}
-.duty tr.w td.last{border-right:4px solid var(--wc)}
 .duty tr.tek td:not(.wkc){background:var(--tek-bg)}
 .duty tr.tek td.dayc{box-shadow:inset 4px 0 0 var(--tek)}
 .duty tr.hol td:not(.wkc){background:repeating-linear-gradient(45deg,var(--panel3),var(--panel3) 6px,var(--panel2) 6px,var(--panel2) 12px);color:var(--muted)}
@@ -288,6 +287,46 @@ table.t tbody tr:hover td{background:var(--panel2)}
   .mgrid tbody th{position:sticky;left:0;z-index:2;background:var(--panel)}
 }
 #printArea{display:none}
+/* ---------- sadeleştirme ve ergonomi ---------- */
+.ph{border-bottom:0;padding-bottom:4px;margin-bottom:22px}
+.ph h1{font-size:23px;letter-spacing:-.02em}
+.card{border-color:color-mix(in srgb,var(--line) 80%,transparent);box-shadow:0 1px 2px rgba(16,24,40,.04)}
+.card h2{font-size:15.5px}
+table.t td,.duty td,.stat b,.mchip{font-variant-numeric:tabular-nums}
+table.t .tag{white-space:nowrap}
+.btn{transition:background .15s,border-color .15s,color .15s,box-shadow .15s,transform .1s}
+.btn.ghost{background:transparent;border-color:transparent;color:var(--muted);font-weight:500}
+.btn.ghost:hover{background:var(--mod-2);border-color:var(--line2);color:var(--mod)}
+details>summary{list-style:none}details>summary::-webkit-details-marker{display:none}
+details>summary.pointer::before,details.dset>summary .dset-t::after{content:"";display:inline-block;width:7px;height:7px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(-45deg);margin:0 8px 2px 2px;transition:transform .15s}
+details[open]>summary.pointer::before,details.dset[open]>summary .dset-t::after{transform:rotate(45deg)}
+.dset{margin-top:14px;border:1px solid var(--line);border-radius:12px;background:var(--panel2)}
+.dset>summary{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;padding:11px 14px;cursor:pointer;border-radius:12px}
+.dset>summary:hover{background:var(--mod-2)}
+.dset-t{display:inline-flex;gap:8px;align-items:center;font-weight:700}
+.dset-t svg.i{color:var(--mod)}
+.dset-t::after{order:3;margin-left:6px}
+.dset-c{display:flex;flex-wrap:wrap;gap:6px}
+.dset-b{padding:4px 14px 14px;border-top:1px solid var(--line)}
+.dset-b>.row:first-child{margin-top:12px}
+.dchips{display:flex;gap:4px}
+.dchip{position:relative;display:inline-flex;cursor:pointer}
+.dchip input{position:absolute;opacity:0;width:1px;height:1px}
+.dchip span{display:inline-block;min-width:38px;text-align:center;padding:4px 7px;border-radius:8px;border:1px solid var(--line2);font-size:12px;font-weight:600;color:var(--muted);background:var(--panel);transition:background .12s,color .12s,border-color .12s}
+.dchip:hover span{border-color:var(--mod);color:var(--mod)}
+.dchip input:checked+span{background:var(--mod);border-color:var(--mod);color:var(--mod-ink)}
+.dchip input:focus-visible+span{box-shadow:var(--focus)}
+.duty thead th{position:sticky;top:0;z-index:2}
+.duty td.last{width:1%;white-space:nowrap}
+.duty select{min-width:170px}
+@media (max-width:900px){
+  .ph .ic{width:42px;height:42px;border-radius:12px}.ph .ic svg.i{width:21px;height:21px}
+  .ph h1{font-size:20px}
+  .stats{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+  .stat{padding:10px;gap:10px;align-items:flex-start}.stat .si{width:32px;height:32px;border-radius:9px}.stat b{font-size:18px}
+  .hero .hs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));width:100%}
+  .card{padding:14px;border-radius:14px}
+}
 @media (prefers-reduced-motion: reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
 
 /* ---------- mobil ---------- */
@@ -1430,38 +1469,65 @@ async function dutySolve(fresh,onProg){
   const baseTek=pool.map(t=>openOf(t).tek+(hist.get(t.id)?.tek||0)),baseTot=pool.map(t=>{const o=openOf(t),h=hist.get(t.id);return o.tek+o.cift+(h?h.tek+h.cift:0);});
   const NW=weeks.length,act=weeks.map(wk=>wk.days.filter(x=>!x.hol).map(x=>x.d));
   const canW=weeks.map((_,w)=>pool.map((_,t)=>act[w].some(d=>avail[t][d])));
+  // başlangıç: kilitliler sabit; "otomatik dağıt"ta mevcut ve hâlâ kurala uyan atamalar korunur
   const A0=new Int8Array(NW*T).fill(-1),L=new Uint8Array(NW*T),lockPi=new Int8Array(NW*T).fill(-1);
-  weeks.forEach((wk,w)=>wk.days.forEach(x=>{if(x.hol)return;const e=S.dutyDays[x.date];if(!e)return;(e.a||[]).forEach((id,pi)=>{const t=ti.get(id);if(t==null||A0[w*T+t]>=0)return;const lk=!!(e.lock&&e.lock[pi]);if(fresh&&!lk)return;A0[w*T+t]=x.d;if(lk){L[w*T+t]=1;lockPi[w*T+t]=pi;}});}));
-  const cnt=new Int8Array(D),tek=new Float64Array(T),tot=new Float64Array(T),wd=new Int16Array(T*D),pairs=new Map(),first=new Int16Array(D);
-  function cost(A){let c=0;tek.fill(0);tot.fill(0);wd.fill(0);pairs.clear();
-    for(let w=0;w<NW;w++){cnt.fill(0);first.fill(-1);
-      for(let t=0;t<T;t++){const d=A[w*T+t];if(d<0){if(canW[w][t])c+=W.miss;continue;}cnt[d]++;wd[t*D+d]++;if(!hasL[t][d])c+=W.noLesson;
-        if(first[d]<0)first[d]=t;else{const a=Math.min(first[d],t),b=Math.max(first[d],t),k=a*T+b;pairs.set(k,(pairs.get(k)||0)+1);}}
-      for(const d of act[w]){if(!cnt[d])c+=W.emptyDay;else if(cnt[d]>PL)c+=W.emptyDay*(cnt[d]-PL);}
-      for(let t=0;t<T;t++){const d=A[w*T+t];if(d<0)continue;if(cnt[d]===1)tek[t]++;tot[t]++;}}
-    for(let k=0;k<wd.length;k++)if(wd[k]>1)c+=W.sameDay*wd[k]*(wd[k]-1)/2;
-    for(const v of pairs.values())if(v>1)c+=W.pair*(v-1);
-    let sT=0,sA=0;for(let t=0;t<T;t++){sT+=baseTek[t]+tek[t];sA+=baseTot[t]+tot[t];}const mT=sT/T,mA=sA/T;
-    for(let t=0;t<T;t++){c+=W.tek*(baseTek[t]+tek[t]-mT)**2+W.total*(baseTot[t]+tot[t]-mA)**2;}
-    return c;}
-  const dayCount=(A,w,d,skip)=>{let n=0;for(let t=0;t<T;t++)if(t!==skip&&A[w*T+t]===d)n++;return n;};
-  let best=null,bestC=Infinity;const R=8,IT=Math.max(8000,Math.min(50000,NW*T*600));
-  for(let r=0;r<R;r++){
-    const A=Int8Array.from(A0);
-    // açgözlü başlangıç: her hafta en kısıtlı öğretmenden başla, önce boş günleri doldur
+  weeks.forEach((wk,w)=>wk.days.forEach(x=>{if(x.hol)return;const e=S.dutyDays[x.date];if(!e)return;(e.a||[]).forEach((id,pi)=>{const t=ti.get(id);if(t==null||A0[w*T+t]>=0)return;const lk=!!(e.lock&&e.lock[pi]);if(!lk&&(fresh||!avail[t][x.d]))return;A0[w*T+t]=x.d;if(lk){L[w*T+t]=1;lockPi[w*T+t]=pi;}});}));
+
+  /* ---- artımlı maliyet: bir hamle yalnızca kendi haftasını yeniden hesaplar ----
+     yerel (hafta): nöbetsiz öğretmen, dersi olmayan gün, nöbetçisiz / taşan gün
+     genel (birikimli): hep aynı gün, aynı eş tekrarı, TEK ve toplam eşitliği */
+  let A=new Int8Array(NW*T);
+  const tekC=new Float64Array(T),totC=new Float64Array(T),wd=new Int16Array(T*D),pc=new Int16Array(T*T),wLoc=new Float64Array(NW);
+  const cnt=new Int16Array(D),mem=new Int16Array(D*T);
+  let Lsum=0,Ssd=0,Spair=0;
+  function week(w,sign){cnt.fill(0);let loc=0;const o=w*T;
+    for(let t=0;t<T;t++){const d=A[o+t];if(d<0){if(canW[w][t])loc+=W.miss;continue;}mem[d*T+cnt[d]++]=t;if(!hasL[t][d])loc+=W.noLesson;}
+    for(const d of act[w]){const n=cnt[d];if(!n)loc+=W.emptyDay;else if(n>PL)loc+=W.emptyDay*(n-PL);}
+    for(let d=0;d<D;d++){const n=cnt[d];for(let i=0;i<n;i++){const t=mem[d*T+i],k=t*D+d;
+      if(sign>0){Ssd+=wd[k];wd[k]++;}else{wd[k]--;Ssd-=wd[k];}
+      totC[t]+=sign;if(n===1)tekC[t]+=sign;
+      for(let j=i+1;j<n;j++){const u=mem[d*T+j],q=t<u?t*T+u:u*T+t;if(sign>0){if(pc[q]>=1)Spair++;pc[q]++;}else{pc[q]--;if(pc[q]>=1)Spair--;}}}}
+    if(sign>0){wLoc[w]=loc;Lsum+=loc;}else Lsum-=wLoc[w];}
+  function total(){let sT=0,sA=0,qT=0,qA=0;for(let t=0;t<T;t++){const a=baseTek[t]+tekC[t],b=baseTot[t]+totC[t];sT+=a;qT+=a*a;sA+=b;qA+=b*b;}
+    return Lsum+W.sameDay*Ssd+W.pair*Spair+W.tek*(qT-sT*sT/T)+W.total*(qA-sA*sA/T);}
+  function load(src){A.set(src);tekC.fill(0);totC.fill(0);wd.fill(0);pc.fill(0);Lsum=0;Ssd=0;Spair=0;for(let w=0;w<NW;w++)week(w,1);return total();}
+  const dayCount=(w,d,skip)=>{let n=0;for(let t=0;t<T;t++)if(t!==skip&&A[w*T+t]===d)n++;return n;};
+  // tek hafta içinde değişiklik dene; kabul edilmezse geri al
+  function tryWeek(w,ch,cur,temp){week(w,-1);const old=ch.map(([i])=>A[i]);for(const[i,v]of ch)A[i]=v;week(w,1);const c=total();
+    if(c<=cur||(temp>0&&Math.random()<Math.exp((cur-c)/temp)))return c;week(w,-1);ch.forEach(([i],k)=>A[i]=old[k]);week(w,1);return null;}
+  // iki haftalık değişiklik (aynı öğretmenin iki haftadaki gününü takas)
+  function tryTwo(w1,w2,ch,cur,temp){week(w1,-1);week(w2,-1);const old=ch.map(([i])=>A[i]);for(const[i,v]of ch)A[i]=v;week(w1,1);week(w2,1);const c=total();
+    if(c<=cur||(temp>0&&Math.random()<Math.exp((cur-c)/temp)))return c;week(w1,-1);week(w2,-1);ch.forEach(([i],k)=>A[i]=old[k]);week(w1,1);week(w2,1);return null;}
+  function move(cur,temp){const w=(Math.random()*NW)|0,t=(Math.random()*T)|0,i=w*T+t;if(L[i]||!act[w].length)return null;const r=Math.random();
+    if(r<.4){const d=act[w][(Math.random()*act[w].length)|0];if(d===A[i]||!avail[t][d]||dayCount(w,d,t)>=PL)return null;return tryWeek(w,[[i,d]],cur,temp);}
+    if(r<.85){const t2=(Math.random()*T)|0,j=w*T+t2;if(t2===t||L[j]||A[i]===A[j])return null;const a=A[i],b=A[j];if((b>=0&&!avail[t][b])||(a>=0&&!avail[t2][a]))return null;return tryWeek(w,[[i,b],[j,a]],cur,temp);}
+    if(NW<2)return null;const w2=(Math.random()*NW)|0,j=w2*T+t;if(w2===w||L[j])return null;const a=A[i],b=A[j];if(a===b||a<0||b<0||!act[w].includes(b)||!act[w2].includes(a)||!avail[t][a]||!avail[t][b])return null;
+    if(dayCount(w,b,t)>=PL||dayCount(w2,a,t)>=PL)return null;return tryTwo(w,w2,[[i,b],[j,a]],cur,temp);}
+  // son cila: iyileştiren tek değişiklik kalmayana kadar tüm komşuları sırayla dene
+  function polish(cur){let imp=true,guard=0;while(imp&&guard++<40){imp=false;
+    for(let w=0;w<NW;w++)for(let t=0;t<T;t++){const i=w*T+t;if(L[i])continue;
+      for(const d of[-1,...act[w]]){if(d===A[i]||(d>=0&&(!avail[t][d]||dayCount(w,d,t)>=PL)))continue;const c=tryWeek(w,[[i,d]],cur-1e-9,0);if(c!=null){cur=c;imp=true;}}
+      for(let t2=t+1;t2<T;t2++){const j=w*T+t2;if(L[j]||A[i]===A[j])continue;const a=A[i],b=A[j];if((b>=0&&!avail[t][b])||(a>=0&&!avail[t2][a]))continue;const c=tryWeek(w,[[i,b],[j,a]],cur-1e-9,0);if(c!=null){cur=c;imp=true;}}}}
+    return cur;}
+
+  const t0=performance.now(),CAP=12000,R=8,IT=Math.max(40000,Math.min(250000,NW*T*D*300));let best=null,bestC=Infinity,tries=0,its=0;
+  const keepC=fresh?Infinity:(()=>{let ok=true;for(let i=0;i<NW*T;i++)if(A0[i]<0&&canW[(i/T)|0][i%T]){ok=false;break;}return ok?load(A0):Infinity;})(); // mevcut çizelge zaten tamsa kıyas için
+  for(let r=0;r<R;r++){tries++;
+    load(A0);
+    // açgözlü başlangıç: her hafta en kısıtlı öğretmenden başla
     for(let w=0;w<NW;w++){const order=pool.map((_,t)=>t).filter(t=>A[w*T+t]<0&&canW[w][t]).sort((a,b)=>act[w].filter(d=>avail[a][d]).length-act[w].filter(d=>avail[b][d]).length||Math.random()-.5);
-      for(const t of order){let bd=-1,bc=Infinity;for(const d of act[w]){if(!avail[t][d]||dayCount(A,w,d,-1)>=PL)continue;A[w*T+t]=d;const c=cost(A)+Math.random()*.5;A[w*T+t]=-1;if(c<bc){bc=c;bd=d;}}A[w*T+t]=bd;}}
-    let cur=cost(A);const T0=Math.max(5,W.tek),T1=.01;
+      for(const t of order){let bd=-1,bc=Infinity;for(const d of act[w]){if(!avail[t][d]||dayCount(w,d,-1)>=PL)continue;week(w,-1);A[w*T+t]=d;week(w,1);const c=total()+Math.random()*.5;week(w,-1);A[w*T+t]=-1;week(w,1);if(c<bc){bc=c;bd=d;}}
+        if(bd>=0){week(w,-1);A[w*T+t]=bd;week(w,1);}}}
+    let cur=total();const T0=Math.max(5,W.tek),T1=.01;
     for(let it=0;it<IT;it++){
-      const temp=T0*Math.pow(T1/T0,it/IT),w=(Math.random()*NW)|0,t=(Math.random()*T)|0,i=w*T+t;if(L[i]||!act[w].length)continue;
-      if(Math.random()<.45){const d=act[w][(Math.random()*act[w].length)|0];if(d===A[i]||!avail[t][d]||dayCount(A,w,d,t)>=PL)continue;
-        const old=A[i];A[i]=d;const c=cost(A);if(c<=cur||Math.random()<Math.exp((cur-c)/temp))cur=c;else A[i]=old;}
-      else{const t2=(Math.random()*T)|0,j=w*T+t2;if(t2===t||L[j]||A[i]===A[j])continue;const a=A[i],b=A[j];if((b>=0&&!avail[t][b])||(a>=0&&!avail[t2][a]))continue;
-        A[i]=b;A[j]=a;const c=cost(A);if(c<=cur||Math.random()<Math.exp((cur-c)/temp))cur=c;else{A[i]=a;A[j]=b;}}
-      if((it&4095)===0){onProg&&onProg((r+it/IT)/R);await new Promise(res=>setTimeout(res,0));}
-    }
-    if(cur<bestC){bestC=cur;best=Int8Array.from(A);}
+      if((it&8191)===0){onProg&&onProg((r+it/IT)/R);await new Promise(res=>setTimeout(res,0));}
+      const temp=T0*Math.pow(T1/T0,it/IT);
+      const c=move(cur,temp);if(c!=null)cur=c;its++;}
+    cur=polish(cur);
+    if(cur<bestC-1e-9){bestC=cur;best=Int8Array.from(A);}
+    if(performance.now()-t0>CAP)break; // çok büyük okullarda süre sınırı
   }
+  if(keepC<=bestC+1e-9)return{cost:keepC,tries,its,kept:true}; // mevcut çizelge daha iyi: dokunma
   // sonucu yaz: tek nöbetçi 1. yere; çiftte 1. yer (Bahçe) dönüşümlü
   const bahce=new Map();for(const list of Object.values(S.dutyRec))if(list.length>1)for(const r of list)if(r.pi===0)bahce.set(r.tid,(bahce.get(r.tid)||0)+1);
   weeks.forEach((wk,w)=>wk.days.forEach(x=>{if(x.hol)return;const ts=[];for(let t=0;t<T;t++)if(best[w*T+t]===x.d)ts.push(t);
@@ -1470,7 +1536,7 @@ async function dutySolve(fresh,onProg){
     const rest=ts.filter(t=>lockPi[w*T+t]<0).sort((p,q)=>(bahce.get(pool[p].id)||0)-(bahce.get(pool[q].id)||0)||Math.random()-.5);
     for(const t of rest){const pi=a.indexOf('');if(pi<0)break;a[pi]=pool[t].id;if(pi===0&&ts.length>1)bahce.set(pool[t].id,(bahce.get(pool[t].id)||0)+1);}
     if(ts.length)S.dutyDays[x.date]={a,lock};else delete S.dutyDays[x.date];}));
-  return{cost:bestC};
+  return{cost:bestC,tries,its,kept:false};
 }
 function dutyIssues(weeks){const pool=dutyPool(),PL=S.settings.dutyPlaces.length,r={noDay:[],missing:[],twice:[],over:[],blocked:[]},LD=teacherLessonDays(),HD=teacherHalfDays();
   for(const wk of weeks){const seen=new Map();for(const x of wk.days){if(x.hol)continue;const ids=dayIds(x.date);if(!ids.length)r.noDay.push(x.date);if(ids.length>PL)r.over.push(x.date);for(const id of ids){seen.set(id,(seen.get(id)||0)+1);const t=S.teachers.find(q=>q.id===id),why=t&&dutyBlock(t,x.d,LD,HD);if(why)r.blocked.push({date:x.date,d:x.d,t,why});}}
@@ -1478,7 +1544,7 @@ function dutyIssues(weeks){const pool=dutyPool(),PL=S.settings.dutyPlaces.length
   return r;}
 
 /* ---------- Nöbet sayfası ---------- */
-let dutyBusy=false,dutyMsg='';
+let dutyBusy=false,dutyMsg='',dutySetOpen=false;
 function rNobet(el){
   const st=S.settings,PL=st.dutyPlaces,D=st.days.length,cfg=S.dutyCfg,W=dutyWeights(),weeks=periodWeeks(),pool=dutyPool(),LD=teacherLessonDays(),HD=teacherHalfDays();
   const start=fmtD(weeks[0].mon),end=weeks[weeks.length-1].days[D-1].date,title=periodTitle(weeks);
@@ -1496,7 +1562,7 @@ function rNobet(el){
     const head=i===0?`<td class="wkc" rowspan="${D}"><span>${wk.w+1}. HAFTA</span></td>`:'';
     const cells=x.hol?`<td class="holiday-cell" colspan="${PL.length}">RESMİ TATİL</td>`:PL.map((_,pi)=>{const id=list[pi]||'';const cover=!id&&ids.length===1;
       return`<td><div class="g-4 nowrap-row row"><select aria-label="${esc(st.days[x.d])} ${trD(x.date)} ${pi+1}. nöbet yeri" data-date="${x.date}" data-pi="${pi}" data-d="${x.d}" class="${cover?'cover':!ids.length?'none':''}">${opts(id,x.date,x.d).replace('<option value="">—</option>',`<option value="">${cover?'↳ iki yeri de '+esc(M.t.get(ids[0])?.name||'')+' kontrol eder':!ids.length?'— nöbetçi yok!':'—'}</option>`)}</select>${id?`<button class="btn sm ico" data-lk="${x.date}|${pi}" title="${lk[pi]?'Kilitli — kilidi aç':'Kilitle'}" aria-pressed="${!!lk[pi]}" style="${lk[pi]?'color:var(--mod);border-color:var(--mod);background:var(--mod-2)':''}">${ic(lk[pi]?'lock':'unlock')}</button>`:''}</div></td>`;}).join('');
-    return`<tr class="w ${i===0?'wkf':''} ${tekRow?'tek':''} ${x.hol?'hol':''}" style="--wc:${wc}">${head}<td class="dayc"><b>${esc(st.days[x.d])}</b>${tekRow?' <span class="badge tek">TEK</span>':''}</td><td><span class="mchip" style="--mc:${MONTH_COLS[x.dt.getMonth()]}"><i></i>${trD(x.date)}</span></td>${cells}<td class="last"><button class="btn sm" data-hol="${x.date}">${x.hol?'Tatili kaldır':'Tatil yap'}</button></td></tr>`;}).join('');}).join('');
+    return`<tr class="w ${i===0?'wkf':''} ${tekRow?'tek':''} ${x.hol?'hol':''}" style="--wc:${wc}">${head}<td class="dayc"><b>${esc(st.days[x.d])}</b>${tekRow?' <span class="badge tek">TEK</span>':''}</td><td><span class="mchip" style="--mc:${MONTH_COLS[x.dt.getMonth()]}"><i></i>${trD(x.date)}</span></td>${cells}<td class="last"><button class="btn sm ghost" data-hol="${x.date}">${x.hol?'Tatili kaldır':'Tatil yap'}</button></td></tr>`;}).join('');}).join('');
   const legend=`<div class="mb-12 legend"><b class="c-text">Renkler:</b>${weeks.map(wk=>`<span><i style="background:${WEEK_COLS[wk.w%WEEK_COLS.length]}"></i>${wk.w+1}. hafta</span>`).join('')}<span class="ml-8">|</span>${usedMonths.map(m=>`<span><i style="background:${MONTH_COLS[m]}"></i>${MONTHS[m]}</span>`).join('')}<span class="ml-8">|</span><span><i class="bg-tek"></i>Tek nöbet (iki yeri tek öğretmen kontrol eder)</span></div>`;
   el.innerHTML=pageHead('shield','Nöbet Çizelgesi','Her öğretmen haftada 1 nöbet · tek ve çift nöbetler birikimli olarak eşitlenir',`<button class="btn" id="dPrint">${ic('print')}Çizelgeyi yazdır</button><button class="btn p" id="dAuto" ${dutyBusy?'disabled':''}>${ic('wand')}Otomatik dağıt</button>`)+`
   <div class="card"><div class="m-0 toolbar">
@@ -1519,19 +1585,7 @@ function rNobet(el){
    ${iss.blocked.length?note('w','<b>Uygun olmayan güne nöbet:</b> '+iss.blocked.map(b=>`${trD(b.date)} ${esc(b.t.name)} (${esc(b.why)})`).join(', ')+'. "Otomatik dağıt" ile düzeltilebilir.'):''}
    ${iss.twice.length?note('w','Haftada iki nöbet: '+iss.twice.map(m=>`${m.w+1}. hafta ${esc(m.t.name)}`).join(', ')):''}
    ${pool.length>D*PL.length?note('e',`${pool.length} nöbetçi öğretmen için haftada yalnızca ${D*PL.length} nöbet yeri var; herkes haftada 1 nöbet tutamaz.`):''}
-  </div>
-  <div class="card"><h2>${ic('cal')}${esc(title)}</h2>${PL.length?legend+(dutyBusy?skelGrid(weeks.length*2,PL.length+2):`<div class="scroll"><table class="duty"><thead><tr><th>Hafta</th><th>Gün</th><th>Tarih</th>${PL.map((p,i)=>`<th>${i+1}. Nöbet Yeri<br><span class="th-sub">${esc(p)}</span></th>`).join('')}<th><span class="sr">İşlem</span></th></tr></thead><tbody>${table}</tbody></table></div>`):emptyBox('shield','Nöbet yeri tanımlı değil. "Okul" sayfasından nöbet yerlerini ekleyin.',`<button class="btn p" data-go="ayar">${ic('school')}Okul sayfasına git</button>`)}
-   ${note('i','Kilitlediğiniz hücrelere otomatik dağıtım dokunmaz. Bir günü tatil yaparsanız o gün nöbet verilmez ve haftanın tek/çift dağılımı buna göre yeniden hesaplanır.')}</div>
-  <div class="card"><h2>${ic('users')}Tek / çift nöbet sayıları</h2>
-   <div class="scroll"><table class="t"><thead><tr><th>Öğretmen</th><th title="Programdan önceki dönemlerden devreden sayılar">Devir tek</th><th>Devir çift</th><th>Kayıtlı (önceki dönemler)</th><th>Bu dönem</th><th>Toplam</th><th>Bu dönem günleri</th><th title="İşaretli günlerde bu öğretmene nöbet verilmez">Nöbet muaf günler</th></tr></thead><tbody>
-   ${rows.map(r=>{const days=[];weeks.forEach(wk=>wk.days.forEach(x=>{if(!x.hol&&dayIds(x.date).includes(r.t.id))days.push(st.days[x.d].slice(0,3)+(dayIds(x.date).length===1?'*':''));}));
-     return`<tr><td>${ic('user')} ${esc(r.t.name)}</td><td><input class="w-60" type="number" min="0" data-op="${r.t.id}|dutyOpenTek" value="${r.o.tek}"></td><td><input class="w-60" type="number" min="0" data-op="${r.t.id}|dutyOpenCift" value="${r.o.cift}"></td><td class="muted">tek ${r.h.tek} · çift ${r.h.cift}</td><td>tek ${r.p.tek} · çift ${r.p.cift}</td><td><b class="${r.tek===tMin&&tMax-tMin>1?'warn':''}">TEK ${r.tek} – ÇİFT ${r.cift}</b></td><td class="small muted">${days.join(', ')}</td><td class="nowrap">${st.days.map((n,d)=>`<label class="small" style="margin-right:6px;white-space:nowrap" title="${esc(n)} günü nöbet verilmesin"><input type="checkbox" data-off="${r.t.id}|${d}" ${(r.t.dutyOffDays||[]).includes(d)?'checked':''}> ${esc(n.slice(0,3))}</label>`).join('')}</td></tr>`;}).join('')}
-   </tbody></table></div>
-   <p class="muted small">* tek nöbet. Nöbet tutmayanlar: ${S.teachers.filter(t=>t.dutyExempt).map(t=>esc(t.name)).join(', ')||'yok'} ("Öğretmenler" sayfasındaki "Nöbet muaf" ile değiştirilir). "Nöbet muaf günler" sütununda işaretlenen günlerde o öğretmene nöbet verilmez.</p>
-   <div class="row"><button class="btn p" id="dSave">${ic('check')}${savedIn?'Bu dönemin kaydını güncelle':'Bu dönemi kayda geçir'}</button>${savedIn?`<button class="btn d" id="dUnsave">${ic('x')}Bu dönemin kaydını sil</button>`:''}</div></div>
-  <div class="card"><h2>${ic('file')}Kayıt defteri (isim bazında)</h2>${ledgerHTML()}
-   <div class="mt-10 row"><button class="btn" id="dCsv">${ic('down')}Excel (.csv)</button><button class="btn" id="dLp">${ic('print')}Defteri yazdır</button></div></div>
-  <div class="card"><h2>${ic('sliders')}Nöbet ayarları</h2>
+   <details class="dset" id="dSet" ${dutySetOpen?'open':''}><summary><span class="dset-t">${ic('sliders')}Dağıtım ayarları</span><span class="dset-c">${cfg.halfDay?'<span class="tag">Sabahı/öğleden sonrası boş güne nöbet yok</span>':''}${cfg.onlyLesson?'<span class="tag">Sadece dersi olan günler</span>':''}${S.teachers.some(t=>(t.dutyOffDays||[]).length)?`<span class="tag">${S.teachers.filter(t=>(t.dutyOffDays||[]).length).length} öğretmende muaf gün</span>`:''}</span></summary><div class="dset-b">
    <div class="g-18 row">
     <label><input type="checkbox" data-dc="onlyLesson" ${cfg.onlyLesson?'checked':''}> Sadece dersi olan günlerde nöbet (kesin)</label>
     <label><input type="checkbox" data-dc="halfDay" ${cfg.halfDay?'checked':''}> Öğleden önce veya öğleden sonra dersi olmayan öğretmene o gün nöbet verme (kesin)</label>
@@ -1540,7 +1594,20 @@ function rNobet(el){
    ${cfg.halfDay&&!HD?note('w','Ders programı henüz oluşturulmadığı için "öğleden önce/sonra boş" kuralı uygulanamıyor.'):''}
    <details class="mt-12"><summary class="pointer small"><b>Gelişmiş: dağıtım ağırlıkları</b></summary>
     <table class="mt-8 t rules"><tbody>${[['tek','Birikimli TEK nöbet sayılarının eşitliği'],['total','Birikimli toplam nöbet sayılarının eşitliği'],['sameDay','Öğretmenin dönem içinde hep aynı güne düşmesi (ceza)'],['pair','Aynı iki öğretmenin tekrar tekrar eşleşmesi (ceza)'],['noLesson','Dersi olmayan güne nöbet (ceza)'],['miss','Haftası nöbetsiz öğretmen (ceza)'],['emptyDay','Nöbetçisiz gün (ceza, çok yüksek tutun)']].map(([k,l])=>`<tr><td>${l}</td><td><input type="number" min="0" data-dw="${k}" value="${W[k]}"></td></tr>`).join('')}</tbody></table></details>
-   ${note('i','<b>Kurallar:</b> Her nöbetçi öğretmen haftada 1 nöbet tutar. Her güne en az bir nöbetçi verilir; nöbetçi sayısı yer sayısından az olduğu için bazı günler tek nöbetçi olur ve 1. nöbet yerine yazılır. Tatil günleri boş geçer. Öğretmene, kişisel muaf günlerinde ve (ayar açıksa) sabahı veya öğleden sonrası boş olan günlerde nöbet verilmez. Tek nöbetler, devir + kayıtlar + bu dönem toplamına göre herkese eşit dağıtılır; çift nöbetlerde 1. nöbet yeri öğretmenler arasında döner.')}</div>`;
+   ${note('i','<b>Kurallar:</b> Her nöbetçi öğretmen haftada 1 nöbet tutar. Her güne en az bir nöbetçi verilir; nöbetçi sayısı yer sayısından az olduğu için bazı günler tek nöbetçi olur ve 1. nöbet yerine yazılır. Tatil günleri boş geçer. Öğretmene, kişisel muaf günlerinde ve (ayar açıksa) sabahı veya öğleden sonrası boş olan günlerde nöbet verilmez. Tek nöbetler, devir + kayıtlar + bu dönem toplamına göre herkese eşit dağıtılır; çift nöbetlerde 1. nöbet yeri öğretmenler arasında döner.')}</div></details>
+  </div>
+  <div class="card"><h2>${ic('cal')}${esc(title)}</h2>${PL.length?legend+(dutyBusy?skelGrid(weeks.length*2,PL.length+2):`<div class="scroll"><table class="duty"><thead><tr><th>Hafta</th><th>Gün</th><th>Tarih</th>${PL.map((p,i)=>`<th>${i+1}. Nöbet Yeri<br><span class="th-sub">${esc(p)}</span></th>`).join('')}<th><span class="sr">İşlem</span></th></tr></thead><tbody>${table}</tbody></table></div>`):emptyBox('shield','Nöbet yeri tanımlı değil. "Okul" sayfasından nöbet yerlerini ekleyin.',`<button class="btn p" data-go="ayar">${ic('school')}Okul sayfasına git</button>`)}
+   ${note('i','Kilitlediğiniz hücrelere otomatik dağıtım dokunmaz. Bir günü tatil yaparsanız o gün nöbet verilmez ve haftanın tek/çift dağılımı buna göre yeniden hesaplanır.')}</div>
+  <div class="card"><h2>${ic('users')}Tek / çift nöbet sayıları</h2>
+   <div class="scroll"><table class="t"><thead><tr><th>Öğretmen</th><th title="Programdan önceki dönemlerden devreden sayılar">Devir tek</th><th>Devir çift</th><th>Kayıtlı (önceki dönemler)</th><th>Bu dönem</th><th>Toplam</th><th>Bu dönem günleri</th><th title="İşaretli günlerde bu öğretmene nöbet verilmez">Nöbet muaf günler</th></tr></thead><tbody>
+   ${rows.map(r=>{const days=[];weeks.forEach(wk=>wk.days.forEach(x=>{if(!x.hol&&dayIds(x.date).includes(r.t.id))days.push(st.days[x.d].slice(0,3)+(dayIds(x.date).length===1?'*':''));}));
+     return`<tr><td>${ic('user')} ${esc(r.t.name)}</td><td><input class="w-60" type="number" min="0" data-op="${r.t.id}|dutyOpenTek" value="${r.o.tek}"></td><td><input class="w-60" type="number" min="0" data-op="${r.t.id}|dutyOpenCift" value="${r.o.cift}"></td><td class="muted nowrap">tek ${r.h.tek} · çift ${r.h.cift}</td><td class="nowrap">tek ${r.p.tek} · çift ${r.p.cift}</td><td class="nowrap"><b class="${r.tek===tMin&&tMax-tMin>1?'warn':''}">TEK ${r.tek} – ÇİFT ${r.cift}</b></td><td class="small muted">${days.join(', ')}</td><td class="nowrap"><div class="dchips">${st.days.map((n,d)=>`<label class="dchip" title="${esc(n)} günü nöbet verilmesin"><input type="checkbox" data-off="${r.t.id}|${d}" ${(r.t.dutyOffDays||[]).includes(d)?'checked':''}><span>${esc(n.slice(0,3))}</span></label>`).join('')}</div></td></tr>`;}).join('')}
+   </tbody></table></div>
+   <p class="muted small">* tek nöbet. Nöbet tutmayanlar: ${S.teachers.filter(t=>t.dutyExempt).map(t=>esc(t.name)).join(', ')||'yok'} ("Öğretmenler" sayfasındaki "Nöbet muaf" ile değiştirilir). "Nöbet muaf günler" sütununda işaretlenen günlerde o öğretmene nöbet verilmez.</p>
+   <div class="row"><button class="btn p" id="dSave">${ic('check')}${savedIn?'Bu dönemin kaydını güncelle':'Bu dönemi kayda geçir'}</button>${savedIn?`<button class="btn d" id="dUnsave">${ic('x')}Bu dönemin kaydını sil</button>`:''}</div></div>
+  <div class="card"><h2>${ic('file')}Kayıt defteri (isim bazında)</h2>${ledgerHTML()}
+   <div class="mt-10 row"><button class="btn" id="dCsv">${ic('down')}Excel (.csv)</button><button class="btn" id="dLp">${ic('print')}Defteri yazdır</button></div></div>`;
+  $('#dSet').addEventListener('toggle',e=>{dutySetOpen=e.target.open;});
   const setStart=(ds,wk)=>{cfg.periodStart=fmtD(mondayOf(parseD(ds)));if(wk)cfg.weeks=Math.max(1,Math.min(10,wk));dutyMsg='';commit();};
   $('#pP').onclick=()=>setStart(fmtD(addDays(weeks[0].mon,-7*weeks.length)));$('#pN').onclick=()=>setStart(fmtD(addDays(weeks[0].mon,7*weeks.length)));
   $('#pS').onchange=e=>{if(e.target.value)setStart(e.target.value);};$('#pW').onchange=e=>setStart(start,+e.target.value||5);
@@ -1555,10 +1622,10 @@ function rNobet(el){
   $$('[data-dw]').forEach(i=>i.onchange=()=>{cfg.w={...W,[i.dataset.dw]:Math.max(0,+i.value||0)};commit(false);});
   const run=async fresh=>{if(dutyBusy)return;if(!pool.length){toast('Nöbet tutabilecek öğretmen yok; "Nöbet muaf" işaretlerini kontrol edin.','warn',{label:'Öğretmenler',fn:()=>go('ogr')});return;}if(!PL.length){toast('Önce nöbet yerlerini tanımlayın.','warn',{label:'Okul sayfası',fn:()=>go('ayar')});return;}
     snapNext(fresh?'Nöbet sıfırdan dağıtılmadan önce':'Nöbet dağıtılmadan önce');dutyBusy=true;dutyMsg='';render();const t0=performance.now();
-    await dutySolve(fresh,f=>{const p=$('#dPrg');if(p)p.innerHTML=`<div class="prog"><div class="mb-5 small">${ic('cpu')} Nöbetler dağıtılıyor…</div><div class="bar"><i style="width:${(f*100).toFixed(0)}%"></i></div></div>`;});
+    const res=await dutySolve(fresh,f=>{const p=$('#dPrg');if(p)p.innerHTML=`<div class="prog"><div class="mb-5 small">${ic('cpu')} Nöbetler dağıtılıyor…</div><div class="bar"><i style="width:${(f*100).toFixed(0)}%"></i></div></div>`;});
     dutyBusy=false;const w2=periodWeeks(),is2=dutyIssues(w2);
     dutyMsg=(is2.noDay.length?note('e',`<b>${is2.noDay.length} gün nöbetçisiz kaldı.</b> O günlere uygun öğretmen yok (izinli / muaf günler, öğleden önce-sonra boş kuralı, "sadece dersi olan günler").`):note('o','<b>Nöbetler dağıtıldı.</b> Her güne en az bir nöbetçi verildi.'))
-      +(is2.missing.length?note('w',`${is2.missing.length} öğretmen-hafta nöbetsiz kaldı (izinli günler veya kilitler nedeniyle).`):'')+`<span class="muted small">${ic('clock')} ${((performance.now()-t0)/1000).toFixed(1)} sn · 8 deneme karşılaştırıldı</span>`;
+      +(is2.missing.length?note('w',`${is2.missing.length} öğretmen-hafta nöbetsiz kaldı (izinli günler veya kilitler nedeniyle).`):'')+`<span class="muted small">${ic('clock')} ${((performance.now()-t0)/1000).toFixed(1)} sn · ${res?res.tries:0} deneme · ${res?Math.round(res.its/1000):0} bin adım${res&&res.kept?' · mevcut çizelge zaten en iyisiydi, değiştirilmedi':''}</span>`;
     commit();};
   $('#dAuto').onclick=()=>run(false);$('#dFresh').onclick=async()=>{if(await ask('Bu dönemdeki kilitli olmayan tüm nöbetler silinip baştan dağıtılacak.',{title:'Sıfırdan dağıtılsın mı?',ok:'Sıfırdan dağıt',danger:true}))run(true);};
   $('#dClear').onclick=async()=>{if(!await ask('Bu dönemdeki kilitli olmayan nöbetler silinecek.',{title:'Nöbetler temizlensin mi?',ok:'Temizle',danger:true}))return;snapNext('Nöbetler temizlenmeden önce');weeks.forEach(wk=>wk.days.forEach(x=>{const e=S.dutyDays[x.date];if(!e)return;e.a=e.a.map((id,pi)=>e.lock&&e.lock[pi]?id:'');if(!e.a.some(Boolean))delete S.dutyDays[x.date];}));dutyMsg='';commit();};
