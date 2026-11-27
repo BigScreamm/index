@@ -1,0 +1,1132 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Okul Dijital Pano — TV</title>
+<!--
+  TV SÜRÜMÜ (Opera TV 40 / Chromium 53 ve benzeri eski TV tarayıcıları için)
+  Kurallar: yalnızca ES5 JavaScript, CSS Grid/clamp()/backdrop-filter/gap/inset YOK,
+  sabit 1920x1080 sahne + ölçekleme, düz renkler, hafif animasyon.
+-->
+<style>
+  @font-face{font-family:"InterTV";font-style:normal;font-weight:600;src:url(/fonts/inter-latin-ext-600-normal.woff2) format("woff2");unicode-range:U+0100-02AF,U+0304,U+0308,U+0329,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20CF,U+2113,U+2C60-2C7F,U+A720-A7FF;}
+  @font-face{font-family:"InterTV";font-style:normal;font-weight:600;src:url(/fonts/inter-latin-600-normal.woff2) format("woff2");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+2000-206F,U+2074,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;}
+  @font-face{font-family:"InterTV";font-style:normal;font-weight:700;src:url(/fonts/inter-latin-ext-700-normal.woff2) format("woff2");unicode-range:U+0100-02AF,U+0304,U+0308,U+0329,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20CF,U+2113,U+2C60-2C7F,U+A720-A7FF;}
+  @font-face{font-family:"InterTV";font-style:normal;font-weight:700;src:url(/fonts/inter-latin-700-normal.woff2) format("woff2");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+2000-206F,U+2074,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;}
+  @font-face{font-family:"InterTV";font-style:normal;font-weight:800;src:url(/fonts/inter-latin-ext-800-normal.woff2) format("woff2");unicode-range:U+0100-02AF,U+0304,U+0308,U+0329,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20CF,U+2113,U+2C60-2C7F,U+A720-A7FF;}
+  @font-face{font-family:"InterTV";font-style:normal;font-weight:800;src:url(/fonts/inter-latin-800-normal.woff2) format("woff2");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+2000-206F,U+2074,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;}
+
+  :root{
+    --bg0:#070b14; --panel:#121a2c; --panel2:#1a2438; --line:#2a3550;
+    --t0:#f4f7fc; --t1:#c3cce0; --t2:#8a96b2; --accent:#f2a93b; --hero:#ffb84d;
+    --c-duty:#0f8f83; --c-sched:#c97815; --c-weather:#2f5fc0; --c-module:#7a3fc9; --c-menu:#c43569; --c-ticker:#d1601f;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html,body{width:100%;height:100%;overflow:hidden;background:var(--bg0);}
+  body{font-family:"InterTV","Segoe UI",Arial,Helvetica,sans-serif;color:var(--t0);}
+  #stage{position:absolute;left:0;top:0;width:1920px;height:1080px;overflow:hidden;background:var(--bg0);
+    -webkit-transform-origin:0 0;transform-origin:0 0;}
+  .ic{width:1em;height:1em;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;vertical-align:-0.15em;}
+  .abs{position:absolute;}
+
+  /* ---------- Başlık ---------- */
+  #top{left:20px;top:20px;width:1880px;height:110px;background:var(--panel);border:2px solid var(--line);border-radius:24px;}
+  #logo{position:absolute;left:22px;top:15px;width:76px;height:76px;border-radius:18px;background:var(--panel2);color:var(--accent);
+    font-size:46px;display:flex;align-items:center;justify-content:center;overflow:hidden;}
+  #logo img{width:100%;height:100%;object-fit:contain;}
+  #bname{position:absolute;left:116px;top:12px;width:900px;font-size:46px;font-weight:800;line-height:56px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  #bsub{position:absolute;left:116px;top:66px;width:900px;font-size:25px;font-weight:600;color:var(--t1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  /* Geri sayım açıkken ad/alt başlık kutunun başladığı yerde biter (eskiden 900px genişlik geri sayımın altına giriyordu) */
+  #top.cdon #bname,#top.cdon #bsub{width:796px;}
+  #cd{position:absolute;left:930px;top:12px;width:520px;height:82px;border-radius:41px;background:var(--panel2);border:2px solid var(--line);display:none;}
+  #cd.on{display:block;}
+  #cdIcon{position:absolute;left:26px;top:20px;font-size:40px;color:var(--accent);}
+  #cdLabel{position:absolute;left:82px;top:7px;width:420px;font-size:21px;font-weight:700;color:var(--t1);white-space:nowrap;overflow:hidden;}
+  #cdVal{position:absolute;left:82px;top:30px;width:430px;font-size:38px;font-weight:800;line-height:44px;color:var(--t0);white-space:nowrap;overflow:hidden;}
+  #cdVal small{font-size:22px;font-weight:700;color:var(--t1);}
+  #clock{position:absolute;right:32px;top:6px;width:420px;text-align:right;font-size:72px;font-weight:800;line-height:80px;color:var(--accent);font-variant-numeric:tabular-nums;}
+  #date{position:absolute;right:34px;top:78px;width:520px;text-align:right;font-size:25px;font-weight:600;color:var(--t1);white-space:nowrap;}
+
+  /* ---------- Paneller ---------- */
+  .panel{position:absolute;background:var(--panel);border:2px solid var(--line);border-radius:24px;overflow:hidden;}
+  .ph{position:absolute;left:0;top:0;right:0;height:62px;color:#fff;font-size:30px;font-weight:800;line-height:62px;padding-left:22px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-right:16px;}
+  .ph .ic{font-size:32px;margin-right:10px;vertical-align:-0.2em;}
+  .ph .sub{position:absolute;right:20px;top:0;font-size:18px;font-weight:600;opacity:.9;}
+
+  /* Ders programı */
+  #sched{left:20px;top:150px;width:560px;height:810px;}
+  #sched .ph{background:var(--c-sched);}
+  #hero{position:absolute;left:0;top:62px;right:0;height:134px;padding:14px 22px 0 22px;}
+  #heroLabel{position:absolute;left:22px;top:20px;width:290px;font-size:25px;font-weight:700;color:var(--t1);line-height:30px;}
+  #heroTime{position:absolute;right:22px;top:6px;width:240px;text-align:right;font-size:66px;font-weight:800;line-height:76px;color:var(--hero);font-variant-numeric:tabular-nums;}
+  #heroTime.long{font-size:48px;} /* SS:DD:ss (1 saatten uzun) 240px kutuya sığsın; eskiden son rakam kırpılıyordu */
+  #barBg{position:absolute;left:22px;right:22px;top:96px;height:16px;border-radius:8px;background:var(--panel2);overflow:hidden;}
+  #barFill{height:100%;width:0%;background:var(--hero);border-radius:8px;}
+  #sList{position:absolute;left:14px;right:14px;top:202px;bottom:10px;overflow:hidden;}
+  .si{position:relative;margin-bottom:3px;border-radius:12px;display:flex;align-items:center;color:#fff;overflow:hidden;}
+  .si .nm{flex:1;min-width:0;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-left:16px;}
+  .si .tm{flex:none;font-weight:700;padding-right:14px;font-variant-numeric:tabular-nums;white-space:nowrap;}
+  .si.cls{background:#2557d6;border-left:10px solid #8fb2ff;}
+  .si.brk{background:#168a43;border-left:10px solid #8ff0b2;}
+  .si.past{opacity:.72;} /* geçmiş ders: soluk ama koridordan okunur (eskiden .45 -> 2.1:1; şimdi >=3:1) */
+  .si.now{background:#ffb020;border-left:10px solid #fff;color:#1b1300;box-shadow:0 0 0 4px #fff;}
+  .si .nowb{flex:none;background:#1b1300;color:#ffb020;font-weight:800;border-radius:14px;padding:2px 12px;margin-right:10px;font-size:20px;}
+
+  /* Medya */
+  #media{position:absolute;left:600px;top:150px;width:780px;height:439px;background:#000;border:2px solid var(--line);border-radius:24px;overflow:hidden;}
+  .sl{position:absolute;left:0;top:0;width:100%;height:100%;opacity:0;-webkit-transition:opacity .8s ease;transition:opacity .8s ease;}
+  .sl.on{opacity:1;}
+  .sl img,.sl video{position:absolute;left:0;top:0;width:100%;height:100%;object-fit:contain;background:#000;}
+  /* Görsel her zaman tamamı görünecek şekilde sığar; siyah bant yerine aynı görselin bulanık, koyu kopyası kenarları doldurur.
+     Oran alanla uyuşuyorsa kopya eklenmez (eski TV belleği için). Bulanıklık bir kez çizilir, geçiş yalnızca opaklıkla yapılır. */
+  .sl img.fit{background:transparent;}
+  .sl img.bg{left:-5%;top:-5%;width:110%;height:110%;object-fit:cover;background:#000;-webkit-filter:blur(22px) brightness(.5);filter:blur(22px) brightness(.5);}
+  #mEmpty{position:absolute;left:0;top:0;right:0;bottom:0;background:var(--panel);display:none;flex-direction:column;align-items:center;justify-content:center;color:var(--t2);text-align:center;padding:0 60px;}
+  #mEmpty .ic{font-size:96px;margin-bottom:16px;}
+  #mEmpty div{font-size:28px;font-weight:600;line-height:36px;}
+  #mErr{position:absolute;left:0;right:0;top:0;background:rgba(0,0,0,.82);color:#ffd9a0;font-size:22px;font-weight:700;line-height:30px;padding:10px 18px;display:none;z-index:5;}
+  #mCap{position:absolute;left:0;right:0;bottom:0;background:rgba(0,0,0,.72);color:#fff;font-size:28px;font-weight:700;line-height:36px;padding:10px 22px;display:none;z-index:3;}
+
+  /* Nöbetçi */
+  #duty{left:600px;top:609px;width:780px;height:351px;}
+  #duty .ph{background:var(--c-duty);}
+  #dList{position:absolute;left:18px;right:18px;top:72px;bottom:8px;overflow:hidden;}
+  .dr{display:flex;align-items:center;border-bottom:2px solid var(--line);}
+  .dr:last-child{border-bottom:none;}
+  .dr .tag{flex:none;width:210px;text-align:center;background:var(--tag-duty);color:#fff;font-weight:800;border-radius:999px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .dr .dn{flex:1;min-width:0;margin-left:20px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+
+  /* Menü */
+  #menu{left:1400px;top:150px;width:500px;height:340px;}
+  #menu .ph{background:var(--c-menu);}
+  #mList{position:absolute;left:18px;right:18px;top:70px;bottom:8px;overflow:hidden;}
+  .mr{display:flex;align-items:center;border-bottom:2px solid var(--line);}
+  .mr:last-child{border-bottom:none;}
+  .mr .day{flex:none;width:134px;text-align:center;background:var(--panel2);color:var(--t1);font-weight:800;border-radius:999px;white-space:nowrap;}
+  .mr .it{flex:1;min-width:0;margin-left:14px;font-weight:600;color:var(--t1);display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;}
+  .mr.today .day{background:var(--c-menu);color:#fff;}
+  .mr.today .it{color:var(--t0);font-weight:700;}
+  /* Onur Köşesi (yemek menüsü yerine yayınlanabilir) */
+  .hn{border-bottom:2px solid var(--line);padding:4px 4px 2px;overflow:hidden;}
+  .hn:last-child{border-bottom:none;}
+  .hn .hl{display:inline-block;max-width:100%;background:var(--c-menu);color:#fff;font-weight:800;font-size:19px;line-height:26px;padding:0 14px;border-radius:999px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .hn .hnm{font-weight:800;color:var(--t0);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px;}
+  .hn .hs{font-weight:600;color:var(--t1);font-size:18px;line-height:22px;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;}
+  .hnone{color:var(--t2);font-weight:600;font-size:22px;line-height:30px;padding:14px 6px;}
+
+  /* Hava durumu */
+  #wx{left:1400px;top:510px;width:500px;height:192px;}
+  #wx .ph{background:var(--c-weather);height:54px;line-height:54px;font-size:28px;}
+  #wxIcon{position:absolute;left:20px;top:70px;font-size:96px;color:#8fc0ff;}
+  #wxTemp{position:absolute;left:140px;top:62px;width:170px;font-size:84px;font-weight:800;line-height:100px;color:var(--t0);}
+  #wxCond{position:absolute;left:312px;top:70px;width:180px;font-size:25px;font-weight:700;line-height:30px;color:var(--t0);}
+  #wxFeels{position:absolute;left:312px;top:114px;width:180px;font-size:21px;font-weight:600;color:var(--t1);}
+  #wxMM{position:absolute;left:312px;top:144px;width:180px;font-size:21px;font-weight:600;color:var(--t1);}
+
+  /* Bilgilendirme */
+  #info{left:1400px;top:722px;width:500px;height:238px;}
+  #info .ph{background:var(--c-module);height:54px;line-height:54px;font-size:28px;}
+  #infoText{position:absolute;left:22px;right:22px;top:66px;bottom:10px;font-size:27px;line-height:35px;font-weight:600;color:var(--t0);
+    display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:5;overflow:hidden;}
+
+  /* Duyuru şeridi */
+  #tick{left:20px;top:980px;width:1880px;height:80px;background:var(--panel);border:2px solid var(--line);border-radius:24px;overflow:hidden;}
+  #tkTag{position:absolute;left:12px;top:10px;width:196px;height:56px;border-radius:28px;background:var(--c-ticker);color:#fff;font-size:28px;font-weight:800;line-height:56px;text-align:center;}
+  #tkTag .ic{font-size:30px;margin-right:8px;}
+  #tkText{position:absolute;left:228px;top:0;width:1630px;height:76px;overflow:hidden;}
+  #tkMove{position:absolute;left:0;top:0;height:76px;line-height:76px;font-size:38px;font-weight:700;white-space:nowrap;color:var(--t0);-webkit-will-change:transform;will-change:transform;}
+  #net{position:absolute;right:20px;top:0;height:76px;line-height:76px;font-size:20px;font-weight:700;color:#ffb020;display:none;background:var(--panel);padding-left:12px;}
+/* ===== Acil duyuru ve uyku ekranı ===== */
+#sleep{position:absolute;left:0;top:0;width:1920px;height:1080px;background:#000;z-index:150;display:none;}
+#emg{position:absolute;left:0;top:0;width:1920px;height:1080px;z-index:200;display:none;overflow:hidden;color:#fff;background:var(--e2);font-family:"InterTV","Segoe UI",Arial,sans-serif;}
+#emg.red{--e1:#e0242c;--e2:#8a0d13;} #emg.orange{--e1:#f08a14;--e2:#9a4d00;} #emg.blue{--e1:#2f6fe0;--e2:#143a85;} #emg.green{--e1:#1fa35a;--e2:#0d5c31;} #emg.yellow{--e1:#f2c014;--e2:#8a6a00;color:#1b1300;}
+#emgPulse{position:absolute;left:0;top:0;width:1920px;height:1080px;background:var(--e1);opacity:.0;-webkit-animation:emgp 1.6s ease-in-out infinite;animation:emgp 1.6s ease-in-out infinite;}
+@-webkit-keyframes emgp{0%{opacity:.0}50%{opacity:.55}100%{opacity:.0}} @keyframes emgp{0%{opacity:.0}50%{opacity:.55}100%{opacity:.0}}
+#emgBox{position:absolute;left:90px;right:90px;top:90px;bottom:90px;border:10px solid rgba(255,255,255,.9);border-radius:36px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:30px 60px;}
+#emg.yellow #emgBox{border-color:rgba(27,19,0,.9);}
+#emgIc{font-size:210px;line-height:1;margin-bottom:10px;} #emgIc .ic{width:1em;height:1em;stroke-width:1.4;}
+#emgTitle{font-weight:800;font-size:120px;line-height:132px;text-transform:uppercase;letter-spacing:2px;max-width:1600px;}
+#emgText{font-weight:700;font-size:64px;line-height:80px;margin-top:26px;max-width:1560px;white-space:pre-line;}
+#emgTime{position:absolute;right:50px;bottom:34px;font-size:34px;font-weight:700;opacity:.85;}
+/* ===== Ek temalar (düzen değiştiren) =====
+@font-face{font-family:"Grotesk";font-weight:700;src:url(/fonts/space-grotesk-latin-ext-700-normal.woff2) format("woff2");unicode-range:U+0100-02AF,U+0304,U+0308,U+0329,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20CF,U+2113,U+2C60-2C7F,U+A720-A7FF}
+@font-face{font-family:"Grotesk";font-weight:700;src:url(/fonts/space-grotesk-latin-700-normal.woff2) format("woff2");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+2000-206F,U+20AC,U+2122}
+@font-face{font-family:"Nunito";font-weight:800;src:url(/fonts/nunito-latin-ext-800-normal.woff2) format("woff2");unicode-range:U+0100-02AF,U+0304,U+0308,U+0329,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20CF,U+2113,U+2C60-2C7F,U+A720-A7FF}
+@font-face{font-family:"Nunito";font-weight:800;src:url(/fonts/nunito-latin-800-normal.woff2) format("woff2");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+2000-206F,U+20AC,U+2122}
+@font-face{font-family:"Chalk";font-weight:700;src:url(/fonts/caveat-latin-ext-700-normal.woff2) format("woff2");unicode-range:U+0100-02AF,U+0304,U+0308,U+0329,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20CF,U+2113,U+2C60-2C7F,U+A720-A7FF}
+@font-face{font-family:"Chalk";font-weight:700;src:url(/fonts/caveat-latin-700-normal.woff2) format("woff2");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+2000-206F,U+20AC,U+2122}
+/* tema: ormandogal */
+body.th-ormandogal{--bg0:#0e2a1e!important;--panel:#f6f0df!important;--panel2:#e9e0c6!important;--line:#d6c9a6!important;--t0:#1d2a1f!important;--t1:#44543f!important;--t2:#6f7c64!important;--accent:#c9971c!important;--hero:#b45309!important;
+--c-duty:#8a6a14!important;--c-sched:#2f6b3f!important;--c-weather:#2b6a7a!important;--c-module:#6b4f9a!important;--c-menu:#a23b3b!important;--c-ticker:#b45309!important;}
+body.th-ormandogal #stage{background:linear-gradient(180deg,#0e2a1e,#143a29)!important;}
+body.th-ormandogal #top,body.th-ormandogal #tick{color:#f7f1de!important;--panel:#153d2c;--panel2:#1f5a41;--line:#2d7a58;--t0:#f7f1de;--t1:#d3dcc6;--t2:#a9b99d;background:#153d2c!important;border:2px solid #2d7a58!important;}
+body.th-ormandogal #top #clock{color:#f2c14e!important}
+body.th-ormandogal #top #cdIcon{color:#f2c14e!important}
+body.th-ormandogal .panel,body.th-ormandogal #top,body.th-ormandogal #tick{border-radius:26px!important;}
+body.th-ormandogal .panel{border:2px solid #d6c9a6!important;}
+body.th-ormandogal .si.cls{background:#dfe9d6!important;border-left:10px solid #2f6b3f!important;color:#183a22!important}
+body.th-ormandogal .si.brk{background:#f3e3b5!important;border-left:10px solid #b9892b!important;color:#5a3e05!important}
+body.th-ormandogal .si.now{background:#2f6b3f!important;border-left:10px solid #f2c14e!important;color:#fff!important;box-shadow:0 0 0 4px #f2c14e!important}
+body.th-ormandogal .si .nowb{background:#f2c14e!important;color:#183a22!important}
+body.th-ormandogal .si.past{opacity:.68!important}
+body.th-ormandogal #wxIcon{color:#2b6a7a!important}
+body.th-ormandogal #barBg{background:#e0d6b8!important}
+body.th-ormandogal #tkTag{background:#c9971c!important;color:#1a1200!important}
+/* tema: yanserit */
+body.th-yanserit #top{left:0!important;top:0!important;width:1920px!important;height:1080px!important;border:0!important;pointer-events:none;z-index:6;border-radius:0!important}
+body.th-yanserit{--bg0:#e9edf4!important;--panel:#ffffff!important;--panel2:#e8edf6!important;--line:#d2d9e6!important;--t0:#0f1a2b!important;--t1:#3a4960!important;--t2:#6b7a93!important;--accent:#ffb703!important;--hero:#e8590c!important;
+--c-duty:#0b8f7a!important;--c-sched:#e8590c!important;--c-weather:#8fb2ff!important;--c-module:#ffb703!important;--c-menu:#c2255c!important;--c-ticker:#ffb703!important;}
+body.th-yanserit,body.th-yanserit #stage{font-family:"Grotesk","InterTV",sans-serif!important;background:#e9edf4!important}
+body.th-yanserit #top{width:440px!important;background:#0f1a2e!important}
+body.th-yanserit #logo{left:30px!important;top:34px!important;width:88px!important;height:88px!important;border-radius:16px!important;background:#ffb703!important;color:#0f1a2e!important}
+body.th-yanserit #bname{left:30px!important;top:140px!important;width:390px!important;height:76px!important;font-size:31px!important;line-height:38px!important;white-space:normal!important;color:#fff!important}
+body.th-yanserit #bsub{left:30px!important;top:222px!important;width:390px!important;font-size:21px!important;color:#ffb703!important;letter-spacing:2px;text-transform:uppercase}
+body.th-yanserit #clock{left:30px!important;right:auto!important;top:262px!important;width:400px!important;text-align:left!important;font-size:78px!important;line-height:90px!important;color:#fff!important}
+body.th-yanserit #date{left:30px!important;right:auto!important;top:354px!important;width:400px!important;text-align:left!important;font-size:25px!important;color:#aeb9d4!important}
+body.th-yanserit #cd{left:30px!important;top:400px!important;width:380px!important;height:92px!important;border-radius:14px!important;background:#1d2b4a!important;border:0!important;border-left:8px solid #ffb703!important}
+body.th-yanserit #cdIcon{left:16px!important;top:28px!important;font-size:34px!important}
+body.th-yanserit #cdLabel{left:66px!important;width:300px!important;color:#aeb9d4!important;font-size:19px!important}
+body.th-yanserit #cdVal{left:66px!important;width:300px!important;font-size:30px!important;color:#fff!important}
+body.th-yanserit #cdVal small{font-size:19px!important;color:#aeb9d4!important}
+body.th-yanserit .panel{border-radius:10px!important;border:0!important;box-shadow:0 3px 0 #ccd4e3;z-index:8}
+body.th-yanserit #menu .ph{font-size:20px!important;letter-spacing:1px!important}
+body.th-yanserit .ph{background:transparent!important;font-weight:700!important;text-transform:uppercase;letter-spacing:2px;font-size:26px!important}
+body.th-yanserit #sched{left:1390px!important;top:30px!important;width:510px!important;height:930px!important;border-top:8px solid var(--c-sched)!important}
+body.th-yanserit #duty{left:470px!important;top:556px!important;width:480px!important;height:404px!important;border-top:8px solid var(--c-duty)!important}
+body.th-yanserit #menu{left:970px!important;top:556px!important;width:400px!important;height:404px!important;border-top:8px solid var(--c-menu)!important}
+body.th-yanserit #sched .ph{color:var(--c-sched)!important}
+body.th-yanserit #duty .ph{color:var(--c-duty)!important}
+body.th-yanserit #menu .ph{color:var(--c-menu)!important}
+body.th-yanserit #media{left:470px!important;top:30px!important;width:900px!important;height:506px!important;border:0!important;border-radius:10px!important;box-shadow:0 3px 0 #ccd4e3}
+body.th-yanserit #wx{left:20px!important;top:520px!important;width:400px!important;height:210px!important;background:#1d2b4a!important;box-shadow:none!important}
+body.th-yanserit #wx .ph{color:#8fb2ff!important}
+body.th-yanserit #wxIcon{left:14px!important;top:72px!important;font-size:84px!important;color:#ffb703!important}
+body.th-yanserit #wxTemp{left:104px!important;top:66px!important;width:150px!important;font-size:72px!important;color:#fff!important}
+body.th-yanserit #wxCond{left:256px!important;top:70px!important;width:140px!important;font-size:20px!important;line-height:24px!important;color:#fff!important}
+body.th-yanserit #wxFeels{left:256px!important;top:134px!important;width:136px!important;font-size:18px!important;color:#aeb9d4!important}
+body.th-yanserit #wxMM{left:256px!important;top:162px!important;width:136px!important;font-size:18px!important;color:#aeb9d4!important}
+body.th-yanserit #info{left:20px!important;top:750px!important;width:400px!important;height:310px!important;background:#1d2b4a!important;box-shadow:none!important}
+body.th-yanserit #info .ph{color:#ffb703!important}
+body.th-yanserit #infoText{color:#fff!important}
+body.th-yanserit .si{border-radius:8px!important}
+body.th-yanserit .si.cls{background:#e8f0ff!important;border-left:10px solid #2f6bff!important;color:#17304f!important}
+body.th-yanserit .si.brk{background:#e5f6ec!important;border-left:10px solid #1faa59!important;color:#12482a!important}
+body.th-yanserit .si.now{background:#e8590c!important;border-left:10px solid #ffb703!important;color:#fff!important;box-shadow:none!important}
+body.th-yanserit .si .nowb{background:#fff!important;color:#e8590c!important}
+body.th-yanserit .dr .tag{background:#08705f!important;border-radius:8px!important;width:170px!important}
+body.th-yanserit .mr .day{background:#eef1f7!important;color:#3a4960!important;border-radius:8px!important}
+body.th-yanserit .mr.today .day{background:#c2255c!important;color:#fff!important}
+body.th-yanserit #tick{left:470px!important;top:980px!important;width:1430px!important;height:80px!important;background:#0f1a2e!important;border:0!important;border-radius:10px!important}
+body.th-yanserit #tkTag{border-radius:8px!important;color:#0f1a2e!important}
+body.th-yanserit #tkText{width:1180px!important;left:228px!important}
+body.th-yanserit #tkMove{color:#fff!important}
+/* tema: karatahta */
+body.th-karatahta #top{left:0!important;top:0!important;width:1920px!important;height:1080px!important;border:0!important;pointer-events:none;z-index:6;border-radius:0!important}
+body.th-karatahta{--bg0:#7a5230!important;--panel:transparent!important;--panel2:rgba(255,255,255,.12)!important;--line:rgba(255,255,255,.55)!important;--t0:#fff!important;--t1:#eef3e8!important;--t2:#cfdcc9!important;--accent:#ffd54f!important;--hero:#ffd54f!important;
+--c-duty:#8fe3b2!important;--c-sched:#ffd54f!important;--c-weather:#9bd4ff!important;--c-module:#ff9fb0!important;--c-menu:#c0392b!important;--c-ticker:#c0392b!important;}
+body.th-karatahta,body.th-karatahta #stage{font-family:"Nunito","InterTV",sans-serif!important;background:#7a5230!important}
+body.th-karatahta #stage:before{content:"";position:absolute;left:22px;top:22px;width:1876px;height:1036px;background:#26493d;border:8px solid #4e3219;border-radius:6px;box-shadow:inset 0 0 140px rgba(0,0,0,.5)}
+body.th-karatahta #top{background:none!important}
+body.th-karatahta #logo{left:56px!important;top:50px!important;width:90px!important;height:90px!important;border-radius:50%!important;background:#fff6c9!important;color:#26493d!important}
+body.th-karatahta #bname{left:162px!important;top:46px!important;width:310px!important;height:72px!important;font-family:"Chalk","Nunito",cursive!important;font-size:34px!important;line-height:34px!important;white-space:normal!important;font-weight:700!important;color:#fff!important}
+body.th-karatahta #bsub{left:162px!important;top:118px!important;width:310px!important;font-family:"Chalk",cursive!important;font-size:30px!important;color:#ffd54f!important}
+body.th-karatahta #clock{left:52px!important;right:auto!important;top:156px!important;width:440px!important;text-align:left!important;font-family:"Chalk",cursive!important;font-size:104px!important;line-height:112px!important;letter-spacing:-2px;color:#fff!important}
+body.th-karatahta #date{left:56px!important;right:auto!important;top:276px!important;width:420px!important;text-align:left!important;font-family:"Chalk",cursive!important;font-size:36px!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#ffd54f!important}
+body.th-karatahta #cd{left:56px!important;top:350px!important;width:416px!important;height:100px!important;border-radius:16px!important;background:transparent!important;border:3px dashed rgba(255,255,255,.7)!important}
+body.th-karatahta #cdIcon{left:16px!important;top:28px!important;font-size:38px!important;color:#ffd54f!important}
+body.th-karatahta #cdLabel{left:68px!important;width:330px!important;font-size:20px!important}
+body.th-karatahta #cdVal{left:68px!important;width:330px!important;font-size:31px!important}
+body.th-karatahta #cdVal small{font-size:19px!important}
+body.th-karatahta .panel{background:transparent!important;border:3px dashed rgba(255,255,255,.6)!important;border-radius:16px!important}
+body.th-karatahta .ph{background:transparent!important;font-family:"Chalk",cursive!important;font-size:42px!important;font-weight:700!important;height:62px!important;line-height:62px!important}
+body.th-karatahta #sched .ph{color:var(--c-sched)!important}
+body.th-karatahta #duty .ph{color:var(--c-duty)!important}
+body.th-karatahta #wx .ph{color:var(--c-weather)!important}
+body.th-karatahta #media{left:990px!important;top:56px!important;width:880px!important;height:495px!important;border:14px solid #fffdf5!important;border-radius:4px!important;box-shadow:0 8px 0 rgba(0,0,0,.25)}
+body.th-karatahta #sched{left:496px!important;top:56px!important;width:470px!important;height:810px!important}
+body.th-karatahta #hero{top:62px!important}
+body.th-karatahta #heroTime{color:#ffd54f!important;font-family:"Chalk",cursive!important;font-size:84px!important}
+body.th-karatahta #heroTime.long{font-size:58px!important}
+body.th-karatahta #heroLabel{font-family:"Chalk",cursive!important;font-size:34px!important;width:200px!important;color:#fff!important;line-height:34px!important}
+body.th-karatahta #barBg{background:rgba(255,255,255,.2)!important}
+body.th-karatahta #barFill{background:#ffd54f!important}
+body.th-karatahta #duty{left:990px!important;top:580px!important;width:420px!important;height:380px!important}
+body.th-karatahta #menu{left:1430px!important;top:580px!important;width:440px!important;height:380px!important;background:#fff6c9!important;border:0!important;border-radius:4px!important;box-shadow:0 8px 0 rgba(0,0,0,.25);-webkit-transform:rotate(1.2deg);transform:rotate(1.2deg)}
+body.th-karatahta #menu .ph{color:#c0392b!important;font-size:31px!important}
+body.th-karatahta .mr{border-bottom:2px dashed #b9a766!important}
+body.th-karatahta .mr .it{color:#3a2d12!important;font-weight:800!important}
+body.th-karatahta .mr .day{background:#efe2a6!important;color:#3a2d12!important;border-radius:6px!important}
+body.th-karatahta .mr.today .day{background:#c0392b!important;color:#fff!important}
+body.th-karatahta #wx{left:56px!important;top:476px!important;width:416px!important;height:220px!important}
+body.th-karatahta #wx .ph{height:56px!important;line-height:56px!important;font-size:42px!important}
+body.th-karatahta #wxIcon{left:16px!important;top:78px!important;font-size:90px!important;color:#9bd4ff!important}
+body.th-karatahta #wxTemp{left:112px!important;top:70px!important;width:150px!important;font-family:"Chalk",cursive!important;font-size:92px!important;color:#fff!important}
+body.th-karatahta #wxCond{left:262px!important;top:72px!important;width:146px!important;font-size:21px!important;line-height:25px!important}
+body.th-karatahta #wxFeels{left:262px!important;top:134px!important;width:146px!important;font-size:18px!important}
+body.th-karatahta #wxMM{left:262px!important;top:162px!important;width:146px!important;font-size:18px!important}
+body.th-karatahta #info{left:56px!important;top:716px!important;width:416px!important;height:244px!important;background:#ffe97a!important;border:0!important;border-radius:2px!important;box-shadow:0 8px 0 rgba(0,0,0,.25);-webkit-transform:rotate(-1.6deg);transform:rotate(-1.6deg)}
+body.th-karatahta #info .ph{color:#7a1f14!important;font-size:44px!important;height:58px!important;line-height:58px!important}
+body.th-karatahta #infoText{color:#2b2100!important;font-weight:800!important}
+body.th-karatahta .si{border-radius:8px!important}
+body.th-karatahta .si.cls{background:transparent!important;border-left:0!important;border-bottom:2px dashed rgba(255,255,255,.4)!important;border-radius:0!important;color:#fff!important}
+body.th-karatahta .si.brk{background:rgba(143,227,178,.18)!important;border-left:0!important;color:#c9f5da!important;font-style:italic}
+body.th-karatahta .si.now{background:#ffd54f!important;border-left:0!important;color:#2b2100!important;box-shadow:none!important}
+body.th-karatahta .si .nowb{background:#2b2100!important;color:#ffd54f!important}
+body.th-karatahta .dr{border-bottom:2px dashed rgba(255,255,255,.4)!important}
+body.th-karatahta .dr .tag{background:transparent!important;border:2px solid #8fe3b2;color:#8fe3b2!important;border-radius:10px!important;width:150px!important}
+body.th-karatahta #tick{left:56px!important;top:978px!important;width:1814px!important;height:66px!important;background:#f3e6bd!important;border:0!important;border-radius:6px!important}
+body.th-karatahta #tkTag{top:8px!important;height:50px!important;line-height:50px!important;border-radius:6px!important;font-family:"Chalk",cursive!important;font-size:36px!important}
+body.th-karatahta #tkText{width:1560px!important;height:66px!important}
+body.th-karatahta #tkMove{color:#2b2100!important;height:66px!important;line-height:66px!important;font-size:34px!important}
+body.th-karatahta #heroLabel{width:280px!important;font-size:28px!important;line-height:29px!important}
+body.th-karatahta .hn{border-bottom:2px dashed #b9a766!important}
+body.th-karatahta .hn .hl{background:#c0392b!important}
+body.th-karatahta .hn .hnm{color:#3a2d12!important}
+body.th-karatahta .hn .hs,body.th-karatahta .hnone{color:#5a4a20!important}
+body.th-yanserit .hn .hl{border-radius:8px!important}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+<symbol id="i-school" viewBox="0 0 24 24"><path d="M12 3 2 8l10 5 10-5-10-5Z"/><path d="M6 10.5V16c0 1.5 2.7 3 6 3s6-1.5 6-3v-5.5"/><path d="M22 8v6"/></symbol>
+<symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.4"/><path d="M5 20c1-3.8 4-5.6 7-5.6s6 1.8 7 5.6"/></symbol>
+<symbol id="i-bell" viewBox="0 0 24 24"><path d="M12 3c-2.8 0-5 2.4-5 5.3v3.4l-1.8 3.1h13.6L17 11.7V8.3C17 5.4 14.8 3 12 3Z"/><path d="M10 19.5a2 2 0 0 0 4 0"/></symbol>
+<symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.4M12 19.1v2.4M4.5 12H2.1M21.9 12h-2.4M5.6 5.6l1.7 1.7M16.7 16.7l1.7 1.7M18.4 5.6l-1.7 1.7M7.3 16.7l-1.7 1.7"/></symbol>
+<symbol id="i-cloud" viewBox="0 0 24 24"><path d="M7 18h10.5a3.8 3.8 0 0 0 .4-7.6A5.5 5.5 0 0 0 7.3 9.2 4.2 4.2 0 0 0 7 18Z"/></symbol>
+<symbol id="i-cloud-sun" viewBox="0 0 24 24"><circle cx="7.5" cy="7" r="2.6"/><path d="M7.5 2.6v1.4M3.8 7H2.4M4.6 3.6l1 1M10.4 3.6l-1 1"/><path d="M9 18h9a3.3 3.3 0 0 0 .3-6.6 4.8 4.8 0 0 0-9-1.6A3.7 3.7 0 0 0 9 18Z"/></symbol>
+<symbol id="i-cloud-rain" viewBox="0 0 24 24"><path d="M6.5 15h11a3.8 3.8 0 0 0 .4-7.6 5.5 5.5 0 0 0-10.6-1.2A4.2 4.2 0 0 0 6.5 15Z"/><path d="M8 18.5 7 21M12 18.5l-1 2.5M16 18.5l-1 2.5"/></symbol>
+<symbol id="i-cloud-snow" viewBox="0 0 24 24"><path d="M6.5 14h11a3.8 3.8 0 0 0 .4-7.6 5.5 5.5 0 0 0-10.6-1.2A4.2 4.2 0 0 0 6.5 14Z"/><path d="M8 17.5v3M12 17.5v3M16 17.5v3M6.5 19h3M10.5 19h3M14.5 19h3"/></symbol>
+<symbol id="i-mega" viewBox="0 0 24 24"><path d="M3 10v4h3l6 4V6L6 10H3Z"/><path d="M15 8.5a4 4 0 0 1 0 7M17.5 5.5a7.8 7.8 0 0 1 0 13"/></symbol>
+<symbol id="i-hourglass" viewBox="0 0 24 24"><path d="M6 3h12M6 21h12M7 3c0 4.2 3 5.3 5 6.5-2 1.2-5 2.3-5 6.5M17 3c0 4.2-3 5.3-5 6.5 2 1.2 5 2.3 5 6.5"/></symbol>
+<symbol id="i-food" viewBox="0 0 24 24"><path d="M6 2.5v7a1.6 1.6 0 0 0 1.6 1.6h0a1.6 1.6 0 0 0 1.6-1.6v-7M6 2.5v4.3M9.2 2.5v4.3M7.6 11.1V21.5M16.8 2.5c-1.7 0-2.9 1.9-2.9 5.2s1.2 5.2 2.9 5.2V21.5"/></symbol>
+<symbol id="i-book" viewBox="0 0 24 24"><path d="M4 5.5c2.5-1 5.5-1 8 .5v13c-2.5-1.5-5.5-1.5-8-.5V5.5Z"/><path d="M20 5.5c-2.5-1-5.5-1-8 .5v13c2.5-1.5 5.5-1.5 8-.5V5.5Z"/></symbol>
+<symbol id="i-ball" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.2"/><path d="M12 3.8v16.4M4.4 9h15.2M4.4 15h15.2"/></symbol>
+<symbol id="i-module" viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"/><path d="M14.5 3v4.5H19M9 12h6M9 15.5h6"/></symbol>
+<symbol id="i-star" viewBox="0 0 24 24"><path d="M12 3.2l2.6 5.4 5.9.8-4.3 4.1 1.1 5.9L12 16.6l-5.3 2.8 1.1-5.9-4.3-4.1 5.9-.8L12 3.2Z"/></symbol>
+<symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 3.2 2.5 19.8h19L12 3.2Z"/><path d="M12 9.6v5"/><path d="M12 17.4v.2"/></symbol>
+<symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v6"/><path d="M12 7.4v.2"/></symbol>
+<symbol id="i-check" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m8 12.4 2.8 2.8L16.2 9.6"/></symbol>
+
+</svg>
+
+<div id="stage">
+  <!-- Başlık -->
+  <div id="top" class="abs">
+    <div id="logo"><svg class="ic"><use href="#i-school"/></svg></div>
+    <div id="bname">Okul Adınız</div>
+    <div id="bsub">Dijital Bilgi Panosu</div>
+    <div id="cd"><svg id="cdIcon" class="ic"><use href="#i-hourglass"/></svg><div id="cdLabel"></div><div id="cdVal"></div></div>
+    <div id="clock">--:--:--</div>
+    <div id="date"></div>
+  </div>
+
+  <!-- Ders programı -->
+  <div id="sched" class="panel">
+    <div class="ph"><svg class="ic"><use href="#i-bell"/></svg>Ders programı</div>
+    <div id="hero"><div id="heroLabel"></div><div id="heroTime"></div><div id="barBg"><div id="barFill"></div></div></div>
+    <div id="sList"></div>
+  </div>
+
+  <!-- Medya -->
+  <div id="media">
+    <div class="sl" id="sl0"></div><div class="sl" id="sl1"></div>
+    <div id="mEmpty"><svg class="ic"><use href="#i-module"/></svg><div id="mEmptyTxt">Görsel ve video eklemek için yönetim panelini kullanın</div></div>
+    <div id="mErr"></div>
+    <div id="mCap"></div>
+  </div>
+
+  <!-- Nöbetçi -->
+  <div id="duty" class="panel">
+    <div class="ph"><svg class="ic"><use href="#i-user"/></svg>Nöbetçi personel<span class="sub" id="dSub"></span></div>
+    <div id="dList"></div>
+  </div>
+
+  <!-- Menü -->
+  <div id="menu" class="panel">
+    <div class="ph"><svg class="ic"><use id="mIc" href="#i-food"/></svg><span id="mTitle">Haftalık yemek menüsü</span></div>
+    <div id="mList"></div>
+  </div>
+
+  <!-- Hava durumu -->
+  <div id="wx" class="panel">
+    <div class="ph"><svg class="ic"><use id="wxHeadUse" href="#i-cloud-sun"/></svg>Hava durumu<span class="sub" id="wxUpd"></span></div>
+    <svg id="wxIcon" class="ic"><use id="wxUse" href="#i-cloud-sun"/></svg>
+    <div id="wxTemp">--°</div>
+    <div id="wxCond">-</div>
+    <div id="wxFeels"></div>
+    <div id="wxMM"></div>
+  </div>
+
+  <!-- Bilgilendirme -->
+  <div id="info" class="panel">
+    <div class="ph" id="infoTitle">Bilgilendirme</div>
+    <div id="infoText"></div>
+  </div>
+
+  <!-- Duyuru şeridi -->
+  <div id="tick" class="abs">
+    <div id="tkTag"><svg class="ic"><use href="#i-mega"/></svg>Duyuru</div>
+    <div id="tkText"><div id="tkMove"></div></div>
+    <div id="net">Sunucuya ulaşılamıyor — son bilgiler gösteriliyor</div>
+  </div>
+
+  <div id="dbg" style="display:none;position:absolute;left:8px;bottom:8px;z-index:300;background:rgba(0,0,0,.75);color:#8ff0b2;font:20px/26px monospace;padding:4px 10px;border-radius:6px;"></div>
+  <div id="sleep"></div>
+  <div id="emg"><div id="emgPulse"></div><div id="emgBox"><div id="emgIc"><svg class="ic"><use id="emgUse" href="#i-alert"/></svg></div><div id="emgTitle"></div><div id="emgText"></div></div><div id="emgTime"></div></div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ================= Yardımcılar ================= */
+  var GUNLER = ["Pazar","Pazartesi","Salı","Çarşamba","Perşembe","Cuma","Cumartesi"];
+  var AYLAR = ["Ocak","Şubat","Mart","Nisan","Mayıs","Haziran","Temmuz","Ağustos","Eylül","Ekim","Kasım","Aralık"];
+  function $(id){ return document.getElementById(id); }
+  function pad(n){ return n < 10 ? "0" + n : "" + n; }
+  function esc(s){
+    return (s == null ? "" : String(s)).replace(/[&<>"']/g, function(c){
+      return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];
+    });
+  }
+  /* İçerik aynıysa DOM'a dokunma: her yoklamada/dakikada listeleri yeniden kurmak eski TV'de stil+yerleşim hesabı
+     tetikliyor ve o anda şerit/video takılıyordu. Yalnızca gerçekten değişen bölüm yeniden çizilir. */
+  function setHtml(el, html){ if(el._h !== html){ el._h = html; el.innerHTML = html; } }
+  function setText(el, t){ if(el.textContent !== t) el.textContent = t; }
+  function toMinutes(hhmm){ var p = String(hhmm || "0:0").split(":"); return (+p[0]) * 60 + (+p[1]); }
+  function lower(s){ try{ return String(s).toLocaleLowerCase("tr"); }catch(e){ return String(s).toLowerCase(); } }
+  function hexToRgba(hex, a){
+    hex = (hex || "").replace("#", "");
+    if(hex.length === 3){ hex = hex.charAt(0)+hex.charAt(0)+hex.charAt(1)+hex.charAt(1)+hex.charAt(2)+hex.charAt(2); }
+    if(hex.length !== 6) return "rgba(242,169,59," + a + ")";
+    return "rgba(" + parseInt(hex.substr(0,2),16) + "," + parseInt(hex.substr(2,2),16) + "," + parseInt(hex.substr(4,2),16) + "," + a + ")";
+  }
+
+  /* ================= Sunucu saati (TV saati yanlış/eski olsa bile doğru gösterir) =================
+     Sunucudan gelen HTTP Date başlığı kullanılır; saat dilimi her zaman Türkiye (UTC+3). */
+  var TIME_OFF = 0;
+  function nowD(){
+    var u = Date.now() + TIME_OFF + 10800000, d = new Date(u);
+    return new Date(u + d.getTimezoneOffset() * 60000);
+  }
+  function syncTime(x){
+    try{
+      var h = x.getResponseHeader("Date"), ms = h ? Date.parse(h) : NaN;
+      if(!isNaN(ms)) TIME_OFF = ms - Date.now();
+    }catch(e){}
+  }
+
+  /* ================= Ölçekleme (sabit 1920x1080 sahne) ================= */
+  var fitKey = "";
+  function fit(){
+    var w = window.innerWidth || document.documentElement.clientWidth || 1280;
+    var h = window.innerHeight || document.documentElement.clientHeight || 720;
+    /* 5 sn'lik denetimde boyut değişmediyse tüm sahneye stil yazıp yeniden hesaplatma */
+    if(w + "x" + h === fitKey) return;
+    fitKey = w + "x" + h;
+    var s = Math.min(w / 1920, h / 1080);
+    var st = $("stage");
+    var tr = "scale(" + s + ")";
+    st.style.webkitTransform = tr; st.style.transform = tr;
+    st.style.left = Math.round((w - 1920 * s) / 2) + "px";
+    st.style.top = Math.round((h - 1080 * s) / 2) + "px";
+  }
+
+  /* ================= Temalar ================= */
+  var THEMES = {
+    lacivert:{bg0:"#070b14",panel:"#121a2c",panel2:"#1a2438",line:"#2a3550",t0:"#f4f7fc",t1:"#c3cce0",t2:"#8a96b2",
+      cDuty:"#0f8f83",cSched:"#c97815",cWeather:"#2f5fc0",cModule:"#7a3fc9",cMenu:"#c43569",cTicker:"#d1601f"},
+    orman:{bg0:"#07140f",panel:"#12291e",panel2:"#1a3a2a",line:"#2a5a40",t0:"#f2f8f4",t1:"#bcd6c6",t2:"#86a695",
+      cDuty:"#12897a",cSched:"#a9790f",cWeather:"#2f6fae",cModule:"#7a4bb0",cMenu:"#b4436c",cTicker:"#c97815"},
+    bordo:{bg0:"#170708",panel:"#2c1315",panel2:"#3d1a1d",line:"#5e2a2e",t0:"#faf3f3",t1:"#e0bcbe",t2:"#b08486",
+      cDuty:"#12897a",cSched:"#b68a12",cWeather:"#3763b0",cModule:"#8a4bb8",cMenu:"#b0416b",cTicker:"#c9601f"},
+    mor:{bg0:"#0d0817",panel:"#1e1532",panel2:"#2a1e46",line:"#43326b",t0:"#f6f3fc",t1:"#cfc1e6",t2:"#9786b4",
+      cDuty:"#0f9488",cSched:"#b08a12",cWeather:"#3763b0",cModule:"#9333c9",cMenu:"#b0416b",cTicker:"#c97815"},
+    acik:{bg0:"#bcd6f0",panel:"#f3f7fd",panel2:"#dde8f6",line:"#a9bfd8",t0:"#1c2333",t1:"#3f4a66",t2:"#68738f",
+      cDuty:"#0f9d8f",cSched:"#b6740f",cWeather:"#2f5fc0",cModule:"#6a3fb0",cMenu:"#b23a6d",cTicker:"#a8460c"}
+  };
+  /* Düzen temalarında paneller farklı boyutta olduğundan satır yükseklik bütçeleri [ders, nöbet, menü] temaya göre değişir */
+  var BUD = { sched:590, duty:270, menu:262 };
+  var THEME_BUD = { yanserit:[700, 324, 326], karatahta:[588, 300, 302] };
+  THEMES.ormandogal = {bg0:"#0e2a1e",panel:"#f6f0df",panel2:"#e9e0c6",line:"#d6c9a6",t0:"#1d2a1f",t1:"#44543f",t2:"#6f7c64",
+      cDuty:"#8a6a14",cSched:"#2f6b3f",cWeather:"#2b6a7a",cModule:"#6b4f9a",cMenu:"#a23b3b",cTicker:"#b45309"};
+  THEMES.yanserit = {bg0:"#e9edf4",panel:"#ffffff",panel2:"#e8edf6",line:"#d2d9e6",t0:"#0f1a2b",t1:"#3a4960",t2:"#6b7a93",
+      cDuty:"#0b8f7a",cSched:"#e8590c",cWeather:"#8fb2ff",cModule:"#ffb703",cMenu:"#c2255c",cTicker:"#ffb703"};
+  THEMES.karatahta = {bg0:"#7a5230",panel:"transparent",panel2:"rgba(255,255,255,.12)",line:"rgba(255,255,255,.55)",t0:"#ffffff",t1:"#eef3e8",t2:"#cfdcc9",
+      cDuty:"#8fe3b2",cSched:"#ffd54f",cWeather:"#9bd4ff",cModule:"#ff9fb0",cMenu:"#c0392b",cTicker:"#c0392b"};
+  /* Beyaz yazılı etiket zemini: tema rengi beyazla en az 4.5:1 verene kadar koyulaştırılır (ES5) */
+  function darkForWhite(hex){
+    var h = String(hex || "").replace("#", ""), n = parseInt(h, 16), c, k, m, i, L;
+    if(h.length !== 6 || isNaN(n)) return hex;
+    c = [n >> 16 & 255, n >> 8 & 255, n & 255];
+    for(k = 0; k <= 1.0001; k += .04){
+      m = []; L = 0;
+      for(i = 0; i < 3; i++){ m[i] = Math.round(c[i] * (1 - k)); var v = m[i] / 255; L += (v <= .03928 ? v / 12.92 : Math.pow((v + .055) / 1.055, 2.4)) * [.2126, .7152, .0722][i]; }
+      if(1.05 / (L + .05) >= 4.6) return "rgb(" + m.join(",") + ")";
+    }
+    return "#000";
+  }
+  function applyTheme(key, accent){
+    var t = THEMES[key] || THEMES.lacivert, r = document.documentElement.style;
+    r.setProperty("--bg0", t.bg0); r.setProperty("--panel", t.panel); r.setProperty("--panel2", t.panel2); r.setProperty("--line", t.line);
+    r.setProperty("--t0", t.t0); r.setProperty("--t1", t.t1); r.setProperty("--t2", t.t2);
+    r.setProperty("--c-duty", t.cDuty); r.setProperty("--c-sched", t.cSched); r.setProperty("--c-weather", t.cWeather);
+    r.setProperty("--c-module", t.cModule); r.setProperty("--c-menu", t.cMenu); r.setProperty("--c-ticker", t.cTicker);
+    r.setProperty("--tag-duty", darkForWhite(t.cDuty));
+    r.setProperty("--accent", key === "acik" ? "#a8460c" : (accent || "#f2a93b"));
+    r.setProperty("--hero", key === "acik" ? "#b45309" : "#ffb84d");
+    var cls = THEMES[key] && /^(ormandogal|yanserit|karatahta)$/.test(key) ? "th-" + key : "";
+    if(document.body.className !== cls) document.body.className = cls;
+    var bd = THEME_BUD[key] || [590, 270, 262]; BUD.sched = bd[0]; BUD.duty = bd[1]; BUD.menu = bd[2];
+  }
+
+  /* ================= Durum ================= */
+  var S = { brand:{}, duty:[], schedule:[], weather:{}, countdown:{}, ticker:[], tickerSpeed:1, module:{}, menu:[], media:[], ytStream:false, honor:{}, hours:{}, emergency:{} };
+  var haveState = false;
+
+  function applyState(d){
+    if(!d || typeof d !== "object") return;
+    for(var k in S){ if(d[k] !== undefined && d[k] !== null) S[k] = d[k]; }
+    haveState = true;
+  }
+
+  /* ================= Başlık: marka, saat, geri sayım ================= */
+  /* Uzun okul adı kutuya sığmıyorsa yazı boyutu 46px'ten 30px'e kadar adım adım küçültülür; ancak o da yetmezse "…" çıkar.
+     (Düzen temaları — yanserit/karatahta — kendi !important boyutlarını kullanır, satır içi stil onları etkilemez.) */
+  function fitBrand(){
+    var el = $("bname"), fs = 46;
+    el.style.fontSize = "";
+    while(el.scrollWidth > el.clientWidth + 1 && fs > 30){ fs -= 2; el.style.fontSize = fs + "px"; }
+  }
+  function renderBrand(){
+    var b = S.brand || {};
+    applyTheme(b.theme || "lacivert", b.accent);
+    $("bname").textContent = b.name || "Okul Adınız";
+    fitBrand(); /* tema değişince de kutu genişliği değişir; durum yalnızca değiştiğinde çağrılır */
+    $("bsub").textContent = b.sub || "Dijital Bilgi Panosu";
+    var lg = $("logo");
+    var want = b.logo || "";
+    if(lg.getAttribute("data-logo") !== want){
+      lg.setAttribute("data-logo", want);
+      lg.innerHTML = want ? '<img alt="" src="' + esc(want) + '"/>' : '<svg class="ic"><use href="#i-school"/></svg>';
+    }
+  }
+  function tickClock(){
+    var d = nowD();
+    $("clock").textContent = pad(d.getHours()) + ":" + pad(d.getMinutes()) + ":" + pad(d.getSeconds());
+    setText($("date"), d.getDate() + " " + AYLAR[d.getMonth()] + " " + d.getFullYear() + " " + GUNLER[d.getDay()]);
+  }
+  function updateCountdown(){
+    var cfg = S.countdown || {}, box = $("cd");
+    if(!cfg.enabled || !cfg.targetDate){ box.className = ""; if($("top").className.indexOf("cdon") >= 0){ $("top").className = "abs"; fitBrand(); } return; }
+    box.className = "on";
+    if($("top").className.indexOf("cdon") < 0){ $("top").className = "abs cdon"; fitBrand(); }
+    $("cdLabel").textContent = cfg.label || "Sınava Kalan Süre";
+    var tp = String(cfg.targetDate).split("-"), diff = new Date(+tp[0], (+tp[1]) - 1, +tp[2], 0, 0, 0).getTime() - nowD().getTime(), v = $("cdVal");
+    var msg = isNaN(diff) ? "--" : (diff <= -86400000 ? "Sınav tamamlandı" : (diff <= 0 ? "Bugün!" : ""));
+    if(msg){ v._sk = null; setText(v, msg); return; }
+    var total = Math.floor(diff / 1000), days = Math.floor(total / 86400), rem = total - days * 86400;
+    /* Saniyede bir innerHTML ayrıştırmak yerine iskelet bir kez kurulur, sonra yalnızca metin düğümleri güncellenir */
+    if(!v._sk){ v.innerHTML = '<span></span> <small>gün</small>&nbsp; <span></span>'; v._sk = v.getElementsByTagName("span"); }
+    setText(v._sk[0], String(days));
+    setText(v._sk[1], pad(Math.floor(rem / 3600)) + ":" + pad(Math.floor((rem % 3600) / 60)) + ":" + pad(rem % 60));
+  }
+
+  /* ================= Nöbetçi personel ================= */
+  /* Gün atanmış satırlar (haftalık çizelge) yalnızca o gün görünür; hafta sonu pazartesi. Günü boş satırlar her gün görünür. */
+  function dutyToday(){
+    var d = nowD().getDay(), idx = (d === 0 || d === 6) ? 1 : d, today = lower(GUNLER[idx]), all = S.duty || [], out = [], weekly = false;
+    for(var i = 0; i < all.length; i++){
+      var r = all[i]; if(!r) continue;
+      if(!r.day){ out.push(r); continue; }
+      weekly = true;
+      if(lower(String(r.day).replace(/^\s+|\s+$/g, "")) === today) out.push(r);
+    }
+    return { rows: out, weekly: weekly, day: GUNLER[idx] };
+  }
+  function renderDuty(){
+    var vis = dutyToday(), list = vis.rows, n = Math.max(list.length, 1), wrap = $("dList");
+    setText($("dSub"), vis.weekly ? vis.day : "");
+    var h = Math.floor(BUD.duty / n); if(h > 54) h = 54; if(h < 30) h = 30;
+    var fs = Math.floor(h * 0.56), tfs = Math.max(19, Math.floor(h * 0.5)); /* etiket en az 19px: koridordan okunur */
+    var html = "";
+    for(var i = 0; i < list.length; i++){
+      html += '<div class="dr" style="height:' + h + 'px"><span class="tag" style="height:' + (h - 10) + 'px;line-height:' + (h - 10) + 'px;font-size:' + tfs + 'px">' + esc(list[i].loc) +
+              '</span><span class="dn" style="font-size:' + fs + 'px">' + esc(list[i].name) + '</span></div>';
+    }
+    setHtml(wrap, html);
+  }
+
+  /* ================= Ders programı ================= */
+  function sortedSchedule(){ return (S.schedule || []).slice().sort(function(a, b){ return toMinutes(a.start) - toMinutes(b.start); }); }
+  function renderScheduleList(){
+    var list = sortedSchedule(), n = Math.max(list.length, 1), wrap = $("sList");
+    var d = nowD(), nowMin = d.getHours() * 60 + d.getMinutes();
+    var started = list.length > 0 && nowMin >= toMinutes(list[0].start);
+    var ended = list.length > 0 && nowMin >= toMinutes(list[list.length - 1].end);
+    var dim = started && !ended;
+    var h = Math.floor(BUD.sched / n) - 3; if(h > 56) h = 56; if(h < 28) h = 28;
+    var fs = Math.floor(h * 0.55), tfs = Math.floor(h * 0.5);
+    var html = "";
+    for(var i = 0; i < list.length; i++){
+      var p = list[i], isNow = nowMin >= toMinutes(p.start) && nowMin < toMinutes(p.end);
+      var past = dim && toMinutes(p.end) <= nowMin && !isNow;
+      html += '<div class="si ' + (p.brk ? "brk" : "cls") + (isNow ? " now" : "") + (past ? " past" : "") + '" style="height:' + h + 'px">' +
+        '<span class="nm" style="font-size:' + fs + 'px">' + esc(p.name) + '</span>' +
+        (isNow ? '<span class="nowb" style="font-size:' + Math.max(18, Math.floor(h * 0.44)) + 'px">ŞİMDİ</span>' : '') +
+        '<span class="tm" style="font-size:' + tfs + 'px">' + esc(p.start) + '–' + esc(p.end) + '</span></div>';
+    }
+    setHtml(wrap, html);
+  }
+  function fmtRemain(mins){
+    if(mins < 0) mins = 0;
+    var h = Math.floor(mins / 60), m = Math.floor(mins % 60), s = Math.floor((mins * 60) % 60);
+    return h > 0 ? (pad(h) + ":" + pad(m) + ":" + pad(s)) : (pad(m) + ":" + pad(s));
+  }
+  function setHero(t){ var el = $("heroTime"); setText(el, t); var c = t.length > 5 ? "long" : ""; if(el.className !== c) el.className = c; }
+  function tickSchedule(){
+    var list = sortedSchedule(), now = nowD();
+    var nowMin = now.getHours() * 60 + now.getMinutes() + now.getSeconds() / 60;
+    var cur = null, next = null, i;
+    for(i = 0; i < list.length; i++){ if(nowMin >= toMinutes(list[i].start) && nowMin < toMinutes(list[i].end)){ cur = list[i]; break; } }
+    if(!cur){ for(i = 0; i < list.length; i++){ if(toMinutes(list[i].start) > nowMin){ next = list[i]; break; } } }
+    if(cur){
+      var remain = toMinutes(cur.end) - nowMin, total = toMinutes(cur.end) - toMinutes(cur.start);
+      $("barFill").style.width = Math.max(0, Math.min(100, (1 - remain / total) * 100)) + "%";
+      $("heroLabel").textContent = cur.name + " bitişine";
+      setHero(fmtRemain(remain));
+    } else if(next){
+      $("barFill").style.width = "0%";
+      $("heroLabel").textContent = next.name + " başlangıcına";
+      setHero(fmtRemain(toMinutes(next.start) - nowMin));
+    } else {
+      $("barFill").style.width = "100%";
+      $("heroLabel").textContent = "Bugünkü ders programı tamamlandı";
+      setHero("Bitti");
+    }
+  }
+
+  /* ================= Hava durumu ================= */
+  var wx = null, wxRetry = null; // canlı (tarayıcıdan çekilen) değerler; yoksa sunucudaki son değerler
+  function wmoInfo(code){
+    var map = {0:["Açık","i-sun"],1:["Az bulutlu","i-cloud-sun"],2:["Parçalı bulutlu","i-cloud-sun"],3:["Bulutlu","i-cloud"],
+      45:["Sisli","i-cloud"],48:["Kırağı sisi","i-cloud"],51:["Hafif çisenti","i-cloud-rain"],53:["Çisenti","i-cloud-rain"],55:["Yoğun çisenti","i-cloud-rain"],
+      56:["Donan çisenti","i-cloud-rain"],57:["Yoğun donan çisenti","i-cloud-rain"],61:["Hafif yağmurlu","i-cloud-rain"],63:["Yağmurlu","i-cloud-rain"],
+      65:["Kuvvetli yağmurlu","i-cloud-rain"],66:["Donan yağmur","i-cloud-rain"],67:["Kuvvetli donan yağmur","i-cloud-rain"],
+      71:["Hafif kar yağışlı","i-cloud-snow"],73:["Kar yağışlı","i-cloud-snow"],75:["Kuvvetli kar yağışlı","i-cloud-snow"],77:["Kar taneli","i-cloud-snow"],
+      80:["Hafif sağanak","i-cloud-rain"],81:["Sağanak yağışlı","i-cloud-rain"],82:["Kuvvetli sağanak","i-cloud-rain"],
+      85:["Hafif kar sağanağı","i-cloud-snow"],86:["Kuvvetli kar sağanağı","i-cloud-snow"],
+      95:["Gök gürültülü sağanak","i-cloud-rain"],96:["Dolulu gök gürültülü sağanak","i-cloud-rain"],99:["Kuvvetli dolulu fırtına","i-cloud-rain"]};
+    return map[code] || ["Parçalı bulutlu", "i-cloud-sun"];
+  }
+  /* Verilen zaman damgasını TV saat dilimine bakmadan İstanbul (UTC+3) saatine çevirir */
+  function toIst(ms){ var d = new Date(ms + 10800000); return new Date(ms + 10800000 + d.getTimezoneOffset() * 60000); }
+  function renderWeather(){
+    /* TV'nin kendi çektiği değer yalnızca sunucudakinden yeniyse kullanılır. Eskiden bir kez çekilen değer, TV'nin
+       internet erişimi sonra kesilse bile sunucunun 30 dk'da bir tazelediği değeri günlerce eziyordu. */
+    var sw = S.weather || {};
+    var w = (wx && sw.auto !== false && (!sw.lastUpdated || wx.lastUpdated >= sw.lastUpdated)) ? wx : sw;
+    var icon = w.icon || "i-cloud-sun";
+    $("wxUse").setAttribute("href", "#" + icon); $("wxHeadUse").setAttribute("href", "#" + icon);
+    $("wxTemp").textContent = (w.temp != null ? w.temp : "--") + "°";
+    $("wxCond").textContent = w.cond || "-";
+    $("wxFeels").textContent = "Hissedilen " + (w.feels != null ? w.feels : "--") + "°";
+    $("wxMM").textContent = "Y: " + (w.max != null ? w.max : "--") + "°   D: " + (w.min != null ? w.min : "--") + "°";
+    var u = "";
+    if(w.lastUpdated){
+      var d = toIst(w.lastUpdated); u = pad(d.getHours()) + ":" + pad(d.getMinutes());
+      if(Date.now() + TIME_OFF - w.lastUpdated > 6 * 3600000) u += " (eski)";
+    }
+    $("wxUpd").textContent = u;
+  }
+  function xhrJson(url, ok, fail, timeoutMs){
+    var x = new XMLHttpRequest(), done = false;
+    function end(good, data, raw){ if(done) return; done = true; if(good) ok(data, raw); else if(fail) fail(); }
+    try{
+      x.open("GET", url, true);
+      x.timeout = timeoutMs || 8000;
+      x.onload = function(){
+        if(x.status >= 200 && x.status < 300){
+          if(url.indexOf("/api/state") === 0) syncTime(x);
+          var raw = x.responseText, data;
+          try{ data = JSON.parse(raw); }catch(e){ end(false); return; }
+          end(true, data, raw);
+        } else end(false);
+      };
+      x.onerror = function(){ end(false); }; x.ontimeout = function(){ end(false); };
+      x.send();
+    }catch(e){ end(false); }
+  }
+  function fetchWeather(){
+    if(!S.weather || S.weather.auto === false) { wx = null; renderWeather(); return; }
+    var url = "https://api.open-meteo.com/v1/forecast?latitude=41.4564&longitude=31.7987&current=temperature_2m,apparent_temperature,weather_code&daily=temperature_2m_max,temperature_2m_min&timezone=Europe%2FIstanbul";
+    xhrJson(url, function(d){
+      try{
+        var info = wmoInfo(d.current.weather_code);
+        wx = { cond:info[0], icon:info[1], temp:Math.round(d.current.temperature_2m), feels:Math.round(d.current.apparent_temperature),
+               max:Math.round(d.daily.temperature_2m_max[0]), min:Math.round(d.daily.temperature_2m_min[0]), lastUpdated:Date.now() + TIME_OFF };
+        renderWeather();
+      }catch(e){}
+    }, function(){
+      /* Başarısızsa 30 dk beklemek yerine bir kez 5 dk sonra yeniden dene (sunucu değeri bu arada gösterilmeye devam eder) */
+      if(!wxRetry){ wxRetry = setTimeout(function(){ wxRetry = null; safe(fetchWeather); }, 5 * 60 * 1000); } /* başarısızlık sürdükçe 5 dk aralıkla */
+    }, 12000);
+  }
+
+  /* ================= Önemli günler ================= */
+    var SPECIAL_SINGLE_DAYS = [
+    {m:1, d:1, title:"Yeni Yıl", msg:"Yeni yılınız kutlu olsun! Bu yıl da birlikte öğrenmeye devam ediyoruz."},
+    {m:3, d:8, title:"Dünya Kadınlar Günü", msg:"Başta kadın öğretmenlerimiz ve annelerimiz olmak üzere tüm kadınların 8 Mart Dünya Kadınlar Günü kutlu olsun."},
+    {m:3, d:12, title:"İstiklal Marşı'nın Kabulü", msg:"İstiklal Marşımızın kabulünün yıl dönümünü saygıyla anıyoruz."},
+    {m:3, d:18, title:"Çanakkale Şehitlerini Anma Günü", msg:"Çanakkale şehitlerimizi rahmet ve minnetle anıyoruz."},
+    {m:4, d:7, title:"Dünya Sağlık Günü", msg:"Sağlıklı kalmak için ellerimizi yıkamayı ve sağlıklı beslenmeyi unutmayalım."},
+    {m:4, d:23, title:"Ulusal Egemenlik ve Çocuk Bayramı", msg:"23 Nisan Ulusal Egemenlik ve Çocuk Bayramımız kutlu olsun!"},
+    {m:5, d:1, title:"Emek ve Dayanışma Günü", msg:"1 Mayıs Emek ve Dayanışma Günü kutlu olsun."},
+    {m:5, d:19, title:"Atatürk'ü Anma, Gençlik ve Spor Bayramı", msg:"19 Mayıs Atatürk'ü Anma, Gençlik ve Spor Bayramımız kutlu olsun!"},
+    {m:6, d:5, title:"Dünya Çevre Günü", msg:"Dünyamızı korumak için bugün küçük bir adım atalım."},
+    {m:8, d:30, title:"Zafer Bayramı", msg:"30 Ağustos Zafer Bayramımız kutlu olsun!"},
+    {m:10, d:24, title:"Birleşmiş Milletler Günü", msg:"Dünya barışı ve dayanışması için el ele."},
+    {m:10, d:29, title:"Cumhuriyet Bayramı", msg:"29 Ekim Cumhuriyet Bayramımız kutlu olsun!"},
+    {m:11, d:10, title:"Atatürk'ü Anma Günü", msg:"Ulu önder Atatürk'ü saygı ve özlemle anıyoruz."},
+    {m:11, d:24, title:"Öğretmenler Günü", msg:"Emeği geçen tüm öğretmenlerimizin Öğretmenler Günü kutlu olsun!"}
+  ];
+  var SPECIAL_WEEKS = [
+    {sm:3, sd:21, em:3, ed:26, title:"Orman Haftası", msg:"Bu hafta Orman Haftası — doğaya ve ağaçlara sahip çıkalım!"},
+    {sm:10, sd:29, em:11, ed:4, title:"Kızılay Haftası", msg:"Bu hafta Kızılay Haftası — paylaşmanın ve yardımlaşmanın önemini hatırlayalım."},
+    {sm:12, sd:10, em:12, ed:16, title:"İnsan Hakları ve Demokrasi Haftası", msg:"Bu hafta İnsan Hakları ve Demokrasi Haftası."}
+  ];
+  function getTodaySpecialDay(){
+    var d = new Date(), m = d.getMonth()+1, day = d.getDate();
+    for(var i=0;i<SPECIAL_SINGLE_DAYS.length;i++){
+      var s = SPECIAL_SINGLE_DAYS[i];
+      if(s.m===m && s.d===day) return s;
+    }
+    for(var j=0;j<SPECIAL_WEEKS.length;j++){
+      var w = SPECIAL_WEEKS[j];
+      var afterStart = (m>w.sm) || (m===w.sm && day>=w.sd);
+      var beforeEnd = (m<w.em) || (m===w.em && day<=w.ed);
+      if(afterStart && beforeEnd) return w;
+    }
+    return null;
+  }
+
+
+  function renderModule(){
+    var m = S.module || {};
+    var sp = (m.autoSpecialDays !== false) ? getTodaySpecialDay() : null;
+    var title = sp ? sp.title : (m.title || "Bilgilendirme");
+    var text = sp ? sp.msg : (m.text || "");
+    $("infoTitle").textContent = title;
+    var el = $("infoText");
+    el.textContent = text;
+    var len = text.length, fs = 28, lc = 5;
+    if(len > 110){ fs = 25; lc = 6; }
+    if(len > 170){ fs = 22; lc = 7; }
+    if(len > 240){ fs = 20; lc = 8; }
+    el.style.fontSize = fs + "px"; el.style.lineHeight = Math.round(fs * 1.28) + "px";
+    el.style.webkitLineClamp = lc;
+  }
+
+  /* ================= Menü ================= */
+  /* Tarihli menü listesinde yalnızca içinde bulunulan haftayı göster (hafta sonu: gelecek hafta) */
+  function menuIso(d){ var m = d.getMonth() + 1, g = d.getDate(); return d.getFullYear() + "-" + (m < 10 ? "0" : "") + m + "-" + (g < 10 ? "0" : "") + g; }
+  function menuWeek(iso){ var p = iso.split("-"), d = new Date(+p[0], +p[1] - 1, +p[2]); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return menuIso(d); }
+  function menuVisible(list){
+    var dated = [], i;
+    for(i = 0; i < list.length; i++){ if(list[i] && list[i].date) dated.push(list[i]); }
+    if(!dated.length) return list;
+    var now = nowD(); if(now.getDay() === 6) now.setDate(now.getDate() + 2); else if(now.getDay() === 0) now.setDate(now.getDate() + 1);
+    var cur = menuWeek(menuIso(now)), target = null, best = null, last = null;
+    for(i = 0; i < dated.length; i++){
+      var w = menuWeek(dated[i].date);
+      if(w === cur) target = cur;
+      else if(w > cur && (best === null || w < best)) best = w;
+      if(last === null || w > last) last = w;
+    }
+    if(!target) target = best || last;
+    var out = [];
+    for(i = 0; i < dated.length; i++){ if(menuWeek(dated[i].date) === target) out.push(dated[i]); }
+    out.sort(function(a, b){ return a.date < b.date ? -1 : (a.date > b.date ? 1 : 0); });
+    return out;
+  }
+  function honorBlock(label, name, sub, hh){
+    var nl = String(name).length, nfs = nl > 22 ? 28 : (nl > 15 ? 34 : 40);
+    if(hh < 112) nfs = Math.min(nfs, 32);
+    return '<div class="hn" style="height:' + hh + 'px"><span class="hl">' + esc(label) + '</span><div class="hnm" style="font-size:' + nfs + 'px;line-height:' + (nfs + 8) + 'px">' + esc(name) + '</div>' +
+           (sub ? '<div class="hs">' + esc(sub) + '</div>' : '') + '</div>';
+  }
+  function renderHonor(hn){
+    var wrap = $("mList"), blocks = [], i;
+    if(String(hn.cleanName || "").replace(/\s+/g, "") !== "") blocks.push([hn.cleanLabel || "Ayın En Temiz Sınıfı", hn.cleanName, hn.cleanNote || ""]);
+    if(String(hn.studentName || "").replace(/\s+/g, "") !== ""){
+      var sub = [hn.studentClass, hn.studentNote].filter(function(x){ return x && String(x).replace(/\s+/g, "") !== ""; }).join(" · ");
+      blocks.push([hn.studentLabel || "Ayın Öğrencisi", hn.studentName, sub]);
+    }
+    var html = "";
+    if(!blocks.length) html = '<div class="hnone">Bu ay için henüz seçim yapılmadı.</div>';
+    else { var hh = Math.floor(BUD.menu / blocks.length) - 2; for(i = 0; i < blocks.length; i++) html += honorBlock(blocks[i][0], blocks[i][1], blocks[i][2], hh); }
+    setHtml(wrap, html);
+  }
+  function renderMenu(){
+    var hn = S.honor || {}, on = hn.enabled === true;
+    $("mTitle").textContent = on ? (hn.title || "Onur Köşesi") : "Haftalık yemek menüsü";
+    $("mIc").setAttribute("href", on ? "#i-star" : "#i-food");
+    if(on){ renderHonor(hn); return; }
+    var list = menuVisible(S.menu || []), n = Math.max(list.length, 1), wrap = $("mList");
+    var h = Math.floor(BUD.menu / n); if(h > 62) h = 62; if(h < 38) h = 38;
+    var fs = h >= 54 ? 22 : 20, dfs = h >= 54 ? 21 : 18;
+    var today = lower(GUNLER[nowD().getDay()]), html = "";
+    for(var i = 0; i < list.length; i++){
+      var r = list[i], isToday = r.date ? r.date === menuIso(nowD()) : (r.day && lower(String(r.day).replace(/^\s+|\s+$/g, "")) === today);
+      html += '<div class="mr' + (isToday ? " today" : "") + '" style="height:' + h + 'px"><span class="day" style="font-size:' + dfs + 'px;height:' + Math.min(h - 12, 38) + 'px;line-height:' + Math.min(h - 12, 38) + 'px">' +
+              esc(r.day) + '</span><span class="it" style="font-size:' + fs + 'px;line-height:' + (fs + 4) + 'px">' + esc(r.items) + '</span></div>';
+    }
+    setHtml(wrap, html);
+  }
+
+  /* ================= Duyuru şeridi (sürekli kayan) ================= */
+  /* Kayan yazı artık JS döngüsüyle (requestAnimationFrame + her karede style.transform) değil, CSS @keyframes ile
+     kaydırılır. Transform animasyonu tarayıcının compositor iş parçacığında çalışır: ana iş parçacığı JSON ayrıştırma,
+     liste çizimi veya çöp toplama ile meşgulken bile şerit takılmaz; saniyede 60 JS çağrısı ve stil yazımı ortadan kalkar.
+     Mesafe piksel cinsinden olduğu için anahtar kareler ölçülen genişliğe göre dinamik bir <style> ile üretilir
+     (Chromium 53'te @keyframes içinde CSS değişkeni güvenilir değil). */
+  var tkSig = "", tkW = 0, tkSpeed = 140, tkUnit = "", tkStyle = null, tkGen = 0, tkPaused = false;
+  function tickerItems(){
+    var a = (S.ticker || []).filter(function(s){ return s && String(s).replace(/\s+/g, "") !== ""; });
+    return a.length ? a : ["Duyuru eklemek için yönetim panelini kullanın."];
+  }
+  function renderTicker(){
+    var items = tickerItems(), sig = items.join("\u0001") + "|" + (S.tickerSpeed || 1);
+    if(sig === tkSig) return;
+    tkSig = sig; tkSpeed = 140 * (S.tickerSpeed || 1);
+    tkUnit = items.map(function(x){ return String(x); }).join("          •          ") + "          •          ";
+    tkBuild(true);
+  }
+  /* Yazı tipi geç yüklenirse genişlik değişir; yeniden ölçülür. Genişlik aynıysa animasyona dokunulmaz (zıplama olmaz). */
+  function tkBuild(reset){
+    var unit = tkUnit, m = $("tkMove");
+    if(!unit) return;
+    var probe = m._probe || (m._probe = document.createElement("span"));
+    probe.textContent = unit;
+    if(probe.parentNode !== m) m.appendChild(probe);
+    var w = probe.offsetWidth, n = 1;
+    m.removeChild(probe);
+    if(w < 1) w = 1;
+    while(w * n < 1700 && n < 40) n++;
+    var newW = w * n;
+    if(!reset && newW === tkW) return;
+    var full = ""; for(var i = 0; i < n * 2; i++) full += unit;
+    m.textContent = full;
+    tkW = newW;
+    tkRun(m);
+  }
+  function tkRun(m){
+    if(!tkStyle){ tkStyle = document.createElement("style"); document.getElementsByTagName("head")[0].appendChild(tkStyle); }
+    var name = "tk" + (++tkGen), to = "translate3d(-" + tkW + "px,0,0)", z = "translate3d(0,0,0)";
+    var kf = "{from{-webkit-transform:" + z + ";transform:" + z + "}to{-webkit-transform:" + to + ";transform:" + to + "}}";
+    tkStyle.textContent = "@-webkit-keyframes " + name + kf + "@keyframes " + name + kf;
+    m.style.webkitAnimation = m.style.animation = name + " " + Math.max(1, tkW / tkSpeed).toFixed(2) + "s linear infinite";
+    m.style.webkitAnimationPlayState = m.style.animationPlayState = tkPaused ? "paused" : "running";
+  }
+  /* Uyku/acil ekranında animasyon duraklatılır (GPU ve güç tasarrufu) */
+  function tkPause(p){
+    if(p === tkPaused) return;
+    tkPaused = p;
+    var m = $("tkMove");
+    m.style.webkitAnimationPlayState = m.style.animationPlayState = p ? "paused" : "running";
+  }
+
+  /* ================= Medya ================= */
+  var mIdx = -1, mLayer = 0, mTimer = null, mSig = null, mGen = 0;
+  var ytSkipped = 0;
+  function mediaList(){
+    var out = [], i, m, loopItem = null; ytSkipped = 0;
+    for(i = 0; i < (S.media || []).length; i++){
+      m = S.media[i]; if(!m) continue;
+      if(m.type === "youtube"){
+        /* TV tarayıcısı YouTube oynatıcısını açamaz; sunucuda yt-dlp varsa video sunucu üzerinden mp4 gibi akıtılır */
+        /* Süre: yönetimdeki "ekranda kalma süresi" (eskiden 0 sabitti, uzun video sonuna kadar oynuyordu) */
+        if(S.ytStream && m.youtubeId){ out.push({ id: m.id, type: "video", yt: true, url: "/yt/" + m.youtubeId + ".mp4", duration: m.duration || 0, sound: m.sound, soundAuto: m.soundAuto, loop: m.loop, caption: m.caption }); if(m.loop && !loopItem) loopItem = out[out.length - 1]; }
+        else if(m.youtubeId) ytSkipped++;
+      } else if(m.url){ out.push(m); if(m.loop && m.type === "video" && !loopItem) loopItem = m; }
+    }
+    /* "Döngü" açık video varsa yalnızca o, sürekli tekrar oynatılır */
+    return loopItem ? [loopItem] : out;
+  }
+  /* Yapısal imza: değişirse gösteri baştan başlar. Ses ayarı ayrı tutulur ki ses aç/kapa videoyu yeniden başlatmasın */
+  function mediaSignature(){ return mediaList().map(function(m){ return m.id + ":" + m.duration + ":" + (m.loop ? 1 : 0) + ":" + (m.caption || "") + ":" + m.url; }).join(","); }
+  function soundSignature(){ return mediaList().map(function(m){ return m.id + ":" + (m.sound ? 1 : 0) + (m.soundAuto ? "a" : ""); }).join(","); }
+  function startShow(){
+    clearTimeout(mTimer); if(blk) return;
+    clearLayer($("sl0")); clearLayer($("sl1")); $("sl0").className = "sl"; $("sl1").className = "sl"; curVid = null;
+    var list = mediaList();
+    $("mEmpty").style.display = list.length ? "none" : "flex";
+    /* Yalnızca YouTube eklenmiş ama sunucuda yt-dlp yoksa: "boş" demek yerine nedenini söyle */
+    $("mEmptyTxt").textContent = ytSkipped ? "YouTube videoları TV'de oynatılamıyor: sunucu bilgisayarda yt-dlp bulunamadı (README bölüm 13). Bilgisayar ekranında oynar; TV için videoyu mp4 olarak yükleyebilirsiniz." : "Görsel ve video eklemek için yönetim panelini kullanın";
+    $("mCap").style.display = "none";
+    if(!list.length) return;
+    mIdx = -1; nextSlide();
+  }
+  /* Video açılamazsa nedenini ekranda göster (TV'de hata ayıklamak için) */
+  function showMediaErr(el, url){
+    var box = $("mErr"), code = el && el.error ? el.error.code : 0;
+    var names = { 1: "iptal edildi", 2: "ağ hatası", 3: "çözme (codec) hatası", 4: "kaynak desteklenmiyor/ulaşılamıyor" };
+    var msg = "Video açılamadı: " + (names[code] || "kod " + code) + " [" + url + "]";
+    box.textContent = msg; box.style.display = "block";
+    try{
+      var x = new XMLHttpRequest(); x.open("GET", url, true); x.setRequestHeader("Range", "bytes=0-0"); x.timeout = 20000;
+      x.onload = function(){ box.textContent = msg + " — sunucu: HTTP " + x.status + (x.status >= 400 ? " " + String(x.responseText || "").slice(0, 160) : " (içerik geliyor; sorun TV'nin video biçimi)"); };
+      x.onerror = function(){ box.textContent = msg + " — sunucuya ulaşılamadı"; };
+      x.ontimeout = function(){ box.textContent = msg + " — sunucu zaman aşımı"; };
+      x.send();
+    }catch(e){}
+  }
+  var loopN = 0, curVid = null;
+  /* Ses "otomatik" ise: teneffüste açık, derste (ve ders dışı saatlerde) kapalı */
+  /* Teneffüs: satırda "Teneffüs" kutusu işaretliyse ya da adı teneffüs/öğle arası/ara gibi ise (kutuyu işaretlemeyi unutan programlar için) */
+  function isBreakRow(r){
+    if(r.brk) return true;
+    var n = lower(String(r.name || ""));
+    return /teneff|öğle|ogle|\bara\b|arası/.test(n);
+  }
+  function isBreakNow(){
+    var list = sortedSchedule(), d = nowD(), n = d.getHours() * 60 + d.getMinutes();
+    for(var i = 0; i < list.length; i++){
+      if(n >= toMinutes(list[i].start) && n < toMinutes(list[i].end)) return isBreakRow(list[i]);
+    }
+    return false;
+  }
+  /* Güncel ses ayarını oynayan videoya yeniden başlatmadan uygular (sabit açık/kapalı ya da otomatik) */
+  function applySound(){
+    if(blk || !curVid || !curVid.el.parentNode) return;
+    var list = mediaList(), it = curVid.item, i;
+    for(i = 0; i < list.length; i++){ if(list[i].id === it.id){ it = curVid.item = list[i]; break; } }
+    var wantMuted = it.soundAuto ? !isBreakNow() : !it.sound, v = curVid.el;
+    soundState = (it.soundAuto ? "otomatik" : (it.sound ? "açık" : "kapalı")) + " · " + (isBreakNow() ? "teneffüs" : "ders") + " · " + (v.muted ? "sessiz" : "SESLİ");
+    if(v.muted !== wantMuted){
+      v.muted = wantMuted; v.defaultMuted = wantMuted;
+      if(wantMuted) v.setAttribute("muted", ""); else { v.removeAttribute("muted"); try{ v.volume = 1; }catch(e){} }
+      if(v.paused){ try{ var pp = v.play(); if(pp && pp.catch) pp.catch(function(){ v.muted = true; }); }catch(e2){} }
+    }
+  }
+  var soundState = "", sSig = "";
+  function applyAutoSound(){ applySound(); }
+  /* Eski video öğesini bırakırken bağlantısını kes (TV'nin sınırlı belleğinde akış açık kalmasın) */
+  function clearLayer(h){
+    var v = h.getElementsByTagName("video");
+    for(var i = 0; i < v.length; i++){ try{ v[i].pause(); v[i].removeAttribute("src"); v[i].load(); }catch(e){} }
+    h.innerHTML = "";
+  }
+  function nextSlide(){
+    clearTimeout(mTimer); if(blk) return;
+    $("mErr").style.display = "none";
+    var list = mediaList(); if(!list.length) return;
+    mIdx = (mIdx + 1) % list.length;
+    var item = list[mIdx], single = list.length === 1;
+    var show = $(mLayer ? "sl1" : "sl0"), hide = $(mLayer ? "sl0" : "sl1");
+    clearLayer(show);
+    var el, hold, gen = ++mGen;
+    /* Geçiş, yeni görsel çözülüp (img load) / videonun ilk karesi hazır olunca (loadeddata) başlar.
+       Eskiden katman hemen görünür yapılıyordu: yavaş ağda yarım yüklenmiş görsel veya siyah video karesi beliriyordu. */
+    function reveal(){
+      if(gen !== mGen || show.className === "sl on") return; /* eski slaytın gecikmiş olayı ya da zaten açık */
+      show.className = "sl on"; hide.className = "sl";
+      setTimeout(function(){ if(hide.className.indexOf("on") < 0) clearLayer(hide); }, 1000);
+      var cap = $("mCap");
+      if(item.caption){ cap.textContent = item.caption; cap.style.display = "block"; } else { cap.style.display = "none"; }
+    }
+    if(item.type === "video"){
+      el = document.createElement("video");
+      var snd = item.soundAuto ? isBreakNow() : !!item.sound;
+      el.muted = !snd; el.defaultMuted = !snd; el.autoplay = true; el.preload = "auto"; el.loop = single && item.url.indexOf("/yt/") !== 0;
+      if(!snd) el.setAttribute("muted", ""); el.setAttribute("playsinline", ""); el.setAttribute("webkit-playsinline", "");
+      el.addEventListener("ended", function(){
+        if(!single){ nextSlide(); return; }
+        /* tek video: akıtılan (yt) videolar için kaynağı yeniden isteyerek başa sar */
+        loopN++; var base = el._low ? item.url + "?q=low" : item.url; el.src = base + (base.indexOf("?") < 0 ? "?r=" + loopN : "&r=" + loopN);
+        try{ var pr2 = el.play(); if(pr2 && pr2.catch) pr2.catch(function(){}); }catch(e3){}
+      });
+      el.addEventListener("error", function(){
+        /* YouTube akışı açılamadıysa (ör. ffmpeg ile birleştirilmiş yüksek kalite akış bu TV'de oynamıyor) bir kez düz mp4 iste */
+        if(ytLow(el, item)) return;
+        showMediaErr(el, item.url); clearTimeout(mTimer); mTimer = setTimeout(nextSlide, single ? 12000 : 6000);
+      });
+      el.addEventListener("loadeddata", reveal);
+      el.src = item.url;
+      show.appendChild(el);
+      curVid = { el: el, item: item };
+      try{ var pr = el.play(); if(pr && pr.catch) pr.catch(function(){ el.muted = true; try{ el.play(); }catch(e2){} }); }catch(e){}
+      (function(v){ setTimeout(function(){ if(v.parentNode && v.paused && v.currentTime === 0){ if(ytLow(v, item)) return; if(!single) nextSlide(); } }, item.yt ? 45000 : 15000); })(el);
+      hold = single ? 0 : ((item.duration > 0) ? item.duration * 1000 : 15 * 60 * 1000);
+    } else {
+      el = document.createElement("img");
+      el.className = "fit";
+      var bgEl = document.createElement("img"); bgEl.className = "bg"; bgEl.alt = "";
+      el.onerror = function(){ clearTimeout(mTimer); if(!single) mTimer = setTimeout(nextSlide, 2500); };
+      el.onload = function(){
+        /* Oran medya alanına uyuyorsa (temaya göre 780×439, 900×506…) bulanık kopyaya gerek yok: kaldır, bellekte tutma */
+        var iw = el.naturalWidth, ih = el.naturalHeight, bw = show.clientWidth || 780, bh = show.clientHeight || 439;
+        if(iw && ih && Math.abs((iw / ih) / (bw / bh) - 1) < 0.03 && bgEl.parentNode) bgEl.parentNode.removeChild(bgEl);
+        reveal();
+      };
+      bgEl.src = item.url;
+      show.appendChild(bgEl);
+      el.src = item.url;
+      show.appendChild(el);
+      hold = single ? 0 : (((item.duration > 0) ? item.duration : 8) * 1000);
+    }
+    mLayer = mLayer ? 0 : 1;
+    setTimeout(reveal, 4000); /* yüklenemese bile 4 sn sonra geçiş yapılır; pano takılı kalmaz */
+    if(hold > 0) mTimer = setTimeout(nextSlide, hold);
+  }
+
+  /* ================= Sunucu ile senkron ================= */
+  var fails = 0;
+  /* Hata sınırı: bir bölümdeki beklenmedik hata diğer bölümlerin çizimini durdurmasın */
+  function safe(fn){ try{ fn(); }catch(e){ noteError("render", e); } }
+  function renderAll(){
+    safe(renderBrand); safe(renderDuty); safe(renderScheduleList); safe(renderWeather); safe(renderModule); safe(renderMenu); safe(renderTicker);
+  }
+  /* Yenileme yalnızca sunucu erişilebiliyorsa yapılır; çevrimdışıyken yenilersek TV hata sayfasında takılı kalabilir */
+  var lastOkAt = Date.now(), errTimes = [];
+  function canReload(){ return Date.now() - lastOkAt < 120000; }
+  function noteError(where, e){
+    var now = Date.now(); errTimes.push(now);
+    while(errTimes.length && now - errTimes[0] > 60000) errTimes.shift();
+    /* 1 dakikada 8'den fazla hata: sayfa bozulmuş sayılır, kendini toparlayacak şekilde yeniden yüklenir (en fazla 3 dakikada bir) */
+    if(errTimes.length >= 8 && canReload()){
+      var last = 0; try{ last = +localStorage.getItem("panoErrReload") || 0; }catch(x){}
+      if(now - last > 180000){ try{ localStorage.setItem("panoErrReload", String(now)); }catch(y){} location.reload(); }
+    }
+  }
+  window.onerror = function(msg, src, line){ noteError("window", msg + " @" + line); return true; };
+  try{ window.addEventListener("unhandledrejection", function(ev){ noteError("promise", ev && ev.reason); }); }catch(e){}
+  function applyAndRender(d){
+    applyState(d);
+    renderAll(); safe(tickSchedule); safe(updateCountdown); safe(updateBlackout);
+    var sig = mediaSignature();
+    if(sig !== mSig){ mSig = sig; sSig = soundSignature(); if(!blk) safe(startShow); }
+    else { var ss = soundSignature(); if(ss !== sSig){ sSig = ss; safe(applySound); } }
+  }
+  /* ================= Çalışma saatleri + acil duyuru ================= */
+  var blk = false, sleeping = false, emgShown = "", tvId = "";
+  try{ tvId = localStorage.getItem("panoTvId") || ""; if(!tvId){ tvId = Math.random().toString(36).slice(2, 12); localStorage.setItem("panoTvId", tvId); } }catch(e){ tvId = tvId || "tv" + Math.floor(Math.random() * 1e6); }
+  function hoursOpen(){
+    var h = S.hours || {};
+    if(h.enabled === false || h.enabled === undefined && !h.start) return true;
+    var d = nowD(), n = d.getHours() * 60 + d.getMinutes(), days = h.days || [1, 2, 3, 4, 5];
+    if(days.indexOf(d.getDay()) < 0) return false;
+    return n >= toMinutes(h.start || "08:30") && n < toMinutes(h.end || "16:00");
+  }
+  function emergencyOn(){
+    var em = S.emergency || {};
+    return em.active === true && (!em.until || Date.now() + TIME_OFF < em.until);
+  }
+  function renderEmergency(em){
+    var len = String(em.text || "").length;
+    $("emg").className = em.color || "red";
+    $("emgUse").setAttribute("href", "#i-" + (em.icon || "alert"));
+    $("emgTitle").textContent = em.title || "";
+    var tx = $("emgText"); tx.textContent = em.text || "";
+    var fs = len <= 60 ? 72 : (len <= 140 ? 60 : (len <= 260 ? 50 : 42));
+    tx.style.fontSize = fs + "px"; tx.style.lineHeight = Math.round(fs * 1.25) + "px"; tx.style.display = em.text ? "block" : "none";
+    var tl = String(em.title || "").length; $("emgTitle").style.fontSize = (tl > 34 ? 72 : (tl > 22 ? 92 : 120)) + "px"; $("emgTitle").style.lineHeight = (tl > 34 ? 84 : (tl > 22 ? 104 : 132)) + "px"; $("emgTitle").style.display = em.title ? "block" : "none";
+    var d = em.startedAt ? toIst(em.startedAt + 0) : nowD(); $("emgTime").textContent = em.startedAt ? "Duyuru saati " + pad(d.getHours()) + ":" + pad(d.getMinutes()) : "";
+  }
+  /* Ekranı durum değişince bir kez günceller: acil duyuru > uyku (çalışma saati dışı) > normal pano */
+  function updateBlackout(){
+    var emgOn = emergencyOn(), slp = !emgOn && !hoursOpen(), was = blk;
+    var key = emgOn ? "e" + (S.emergency.nonce || 0) : (slp ? "s" : "");
+    sleeping = slp; blk = emgOn || slp;
+    tkPause(blk);
+    if(key === emgShown) return;
+    emgShown = key;
+    $("sleep").style.display = slp ? "block" : "none";
+    if(emgOn){ renderEmergency(S.emergency); $("emg").style.display = "block"; } else $("emg").style.display = "none";
+    if(blk){ clearTimeout(mTimer); clearLayer($("sl0")); clearLayer($("sl1")); curVid = null; }
+    else if(was){ mSig = mediaSignature(); startShow(); }
+  }
+
+  /* Tek zincirli yoklama: başarıda 15 sn, ardışık hatada 15→30→60 sn'ye kadar yavaşlar (kapalı sunucuyu boğmaz); çift zincir oluşmaz */
+  var pollBusy = false, pollT = null, stateV = "";
+  function nextPoll(){ clearTimeout(pollT); pollT = setTimeout(function(){ poll(false); }, fails === 0 ? (sleeping ? 30000 : 15000) : Math.min(60000, 15000 * Math.pow(2, Math.min(fails, 2)))); }
+  function poll(first){
+    if(pollBusy) return;
+    pollBusy = true; clearTimeout(pollT);
+    xhrJson("/api/state?_=" + (+nowD()) + "&c=tv&id=" + tvId + "&m=" + (sleeping ? "sleep" : "on") + "&e=" + errTimes.length + (stateV ? "&v=" + stateV : ""), function(d, raw){
+      pollBusy = false; fails = 0; lastOkAt = Date.now(); $("net").style.display = "none";
+      /* Değişiklik yoksa sunucu yalnızca {same:1} döner: büyük JSON ayrıştırma, localStorage yazımı ve yeniden çizim tamamen atlanır */
+      if(d && d.same !== 1){
+        stateV = d.v || "";
+        /* Önbellek yalnızca durum değişince yazılır (eskiden 15 sn'de bir, logo dahil tüm durum yeniden serileştirilip yazılıyordu) */
+        try{ localStorage.setItem("panoTvState", raw); }catch(e){}
+        try{ applyAndRender(d); }catch(e2){ noteError("apply", e2); }
+      }
+      if(first) fetchWeather();
+      nextPoll();
+    }, function(){
+      pollBusy = false; fails++;
+      if(fails >= 3) $("net").style.display = "block";
+      nextPoll();
+    }, 8000);
+  }
+  /* Video ilerleme bekçisi: oynuyor görünüp 30 sn boyunca ilerlemeyen (donmuş) video yeniden başlatılır / sıradakine geçilir */
+  var vwLast = -1, vwSame = 0, vwEl = null;
+  /* YouTube akışını bir kez "?q=low" (sunucuda tek parça mp4, ileri sarılabilir, en uyumlu) ile yeniden ister */
+  function ytLow(v, item){
+    if(!item.yt || v._low || !v.parentNode) return false;
+    v._low = true; soundState = "youtube: uyumlu mp4'e geçildi";
+    try{ v.src = item.url + "?q=low"; var p = v.play(); if(p && p.catch) p.catch(function(){}); }catch(e){}
+    return true;
+  }
+  function videoWatch(){
+    if(blk || !curVid || !curVid.el.parentNode){ vwEl = null; vwSame = 0; return; }
+    var v = curVid.el;
+    if(v !== vwEl){ vwEl = v; vwLast = -1; vwSame = 0; }
+    if(v.ended || v.error){ return; }
+    if(v.paused){ try{ var pp = v.play(); if(pp && pp.catch) pp.catch(function(){}); }catch(e){} }
+    if(v.currentTime === vwLast){ vwSame++; } else { vwSame = 0; vwLast = v.currentTime; }
+    if(vwSame >= 6){
+      vwSame = 0;
+      if(ytLow(v, curVid.item)) return;
+      var list = mediaList();
+      if(list.length <= 1){ loopN++; var base = v._low ? curVid.item.url + "?q=low" : curVid.item.url; v.src = base + (base.indexOf("?") < 0 ? "?r=" : "&r=") + loopN; try{ var p2 = v.play(); if(p2 && p2.catch) p2.catch(function(){}); }catch(e2){} }
+      else nextSlide();
+    }
+  }
+
+  /* ================= Başlat ================= */
+  fit();
+  window.addEventListener("resize", fit);
+  setInterval(fit, 5000);
+  try{ var c = localStorage.getItem("panoTvState"); if(c){ applyState(JSON.parse(c)); } }catch(e){}
+  /* Tek saniye döngüsü, (sunucu saatine göre) saniye sınırına hizalı: setInterval(1000) kayar; büyük saat ekranda
+     zaman zaman bir saniyeyi atlıyor ya da iki kez gösteriyordu. Bir sonraki çağrı her turda yeniden hizalanır ve
+     en başta planlanır, böylece içerideki bir hata döngüyü öldüremez. */
+  var lastTick = Date.now();
+  function secondLoop(){
+    setTimeout(secondLoop, 1000 - ((Date.now() + TIME_OFF) % 1000) + 10);
+    var t = Date.now();
+    /* Saat sıçraması = TV uyudu/sekme dondu: hemen yokla; 10 dk'dan uzunsa (sunucu erişilebilirse) sayfayı tazele */
+    if(t - lastTick > 20000 || lastTick - t > 20000){ poll(false); if(t - lastTick > 600000 && canReload()){ location.reload(); return; } }
+    lastTick = t;
+    safe(tickClock); safe(updateCountdown); safe(tickSchedule); safe(updateBlackout);
+  }
+  safe(tickClock); secondLoop();
+  setInterval(function(){ safe(renderScheduleList); safe(renderMenu); safe(renderModule); safe(renderDuty); }, 60000);
+  setInterval(function(){ safe(videoWatch); }, 5000);
+  if(haveState){ renderAll(); mSig = mediaSignature(); startShow(); }
+  poll(true);
+  setInterval(function(){ safe(fetchWeather); }, 30 * 60 * 1000);
+  setTimeout(function(){ tkBuild(false); }, 1500); setTimeout(function(){ tkBuild(false); safe(fitBrand); }, 4000);
+  try{ if(document.fonts && document.fonts.ready) document.fonts.ready.then(function(){ tkBuild(false); safe(fitBrand); }); }catch(e){}
+  setInterval(function(){ safe(applyAutoSound); }, 2000);
+  /* Sorun giderme: adresin sonuna ?debug=1 ekleyince sol altta ses durumu görünür */
+  if(/[?&]debug=1/.test(location.search)){ $("dbg").style.display = "block"; setInterval(function(){ $("dbg").textContent = "ses: " + (soundState || "-") + " | " + pad(nowD().getHours()) + ":" + pad(nowD().getMinutes()); }, 1000); }
+  /* Zayıf TV bellek sızıntılarına karşı her gece 03:30'da sayfayı yenile */
+  setInterval(function(){ var d = nowD(); if(d.getHours() === 3 && d.getMinutes() === 30 && d.getSeconds() < 30 && canReload()){ location.reload(); } }, 20000);
+})();
+</script>
+</body>
+</html>

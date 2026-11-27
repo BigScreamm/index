@@ -1,0 +1,2574 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Okul Dijital Pano</title>
+<style>
+  :root{
+    --bg-0:#070b14;
+    --bg-1:#0c1220;
+    --bg-2:#121a2c;
+    --bg-3:#1a2438;
+    --line: rgba(15,20,30,.20);
+    --line-strong: rgba(15,20,30,.34);
+    --text-0:#0a0d14;
+    --text-1:#283041;
+    --text-2:#454e61;
+    --accent:#c97815;
+    --accent-2:#0f8f83;
+    --c-duty:#0f8f83;
+    --c-sched:#c97815;
+    --c-weather:#2f5fc0;
+    --c-module:#7a3fc9;
+    --c-menu:#c43569;
+    --c-ticker:#d1601f;
+    --glow-1: rgba(201,120,21,.12);
+    --glow-2: rgba(15,143,131,.10);
+    --glow-sched: rgba(201,120,21,.26);
+    --glow-duty: rgba(15,143,131,.24);
+    --glow-sched-bg: rgba(201,120,21,.20);
+    --glow-weather: rgba(47,95,192,.22);
+    --glow-module: rgba(122,63,201,.22);
+    --glow-menu: rgba(196,53,105,.22);
+    --danger:#b8352f;
+    --radius-lg:28px;
+    --radius-md:18px;
+    --radius-sm:12px;
+    --glass-fill: linear-gradient(160deg, rgba(255,255,255,.93), rgba(255,255,255,.80));
+    --glass-border: rgba(255,255,255,.8);
+    --glass-shadow: 0 25px 55px -18px rgba(10,15,30,.5), inset 0 1px 0 rgba(255,255,255,.8), inset 0 -1px 0 rgba(10,15,30,.06);
+    --font-display:-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI Semibold","Bahnschrift",sans-serif;
+    --font-body:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",system-ui,"Helvetica Neue",Arial,sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html{font-size:clamp(14px,0.85vw + 8px,20px);}
+  body{
+    margin:0; padding:0; background:var(--bg-0); color:var(--text-0);
+    font-family:var(--font-body); overflow:hidden; height:100vh; width:100vw;
+    -webkit-font-smoothing:antialiased;
+  }
+  img{max-width:100%; display:block;}
+  button{font-family:inherit; cursor:pointer;}
+  .icon{width:1em; height:1em; stroke:currentColor; fill:none; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; vertical-align:-0.15em;}
+  .icon.filled{fill:currentColor; stroke:none;}
+
+  /* ============ KIOSK — "vision glass" ortamı ============ */
+  #kiosk{
+    position:fixed; inset:0;
+    background:
+      radial-gradient(1000px 800px at 12% 15%, var(--bg-3), transparent 60%),
+      radial-gradient(1100px 850px at 88% 8%, var(--glow-weather, var(--glow-1)), transparent 55%),
+      radial-gradient(900px 900px at 92% 92%, var(--glow-menu, var(--glow-2)), transparent 55%),
+      radial-gradient(1000px 750px at 8% 95%, var(--glow-sched, var(--glow-1)), transparent 55%),
+      linear-gradient(165deg, var(--bg-0), var(--bg-1) 45%, var(--bg-0));
+    display:grid;
+    grid-template-columns: 21.5rem 1fr 21.5rem;
+    grid-template-rows: 6.4rem 1fr 4.8rem;
+    grid-template-areas:
+      "topbar topbar topbar"
+      "left   media  right"
+      "ticker ticker ticker";
+    height:100vh; width:100vw;
+    gap:1rem; padding:1rem;
+  }
+
+  /* --- Top bar --- */
+  .topbar{grid-area:topbar; display:grid; grid-template-columns:auto 1fr auto; align-items:center; gap:1rem; padding:0 1.7rem; border-radius:var(--radius-lg); position:relative; z-index:2;
+    background:var(--glass-fill); -webkit-backdrop-filter:blur(30px) saturate(180%); backdrop-filter:blur(30px) saturate(180%); border:1px solid var(--glass-border); box-shadow:var(--glass-shadow);}
+  .brand{display:flex; align-items:center; gap:.9rem; min-width:0;}
+  .brand-logo{width:3.3rem; height:3.3rem; border-radius:1rem; background:rgba(255,255,255,.5); border:1px solid var(--glass-border); display:flex; align-items:center; justify-content:center; overflow:hidden; flex-shrink:0; box-shadow:inset 0 1px 0 rgba(255,255,255,.7);}
+  .brand-logo img{width:100%; height:100%; object-fit:cover;}
+  .brand-logo .icon{width:1.6rem; height:1.6rem; color:var(--text-2);}
+  .brand-name{font-family:var(--font-display); font-weight:600; letter-spacing:-.01em; font-size:1.65rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:34rem;}
+  .brand-sub{font-size:.85rem; color:var(--text-2); margin-top:.1rem;}
+  .clockbox{text-align:right;}
+  .clock-time{font-family:var(--font-display); font-weight:600; font-size:2.3rem; font-variant-numeric:tabular-nums; letter-spacing:-.01em; color:var(--text-0); line-height:1;}
+  .clock-date{font-size:.85rem; color:var(--text-2); margin-top:.3rem;}
+
+  /* --- Sınav geri sayımı (topbar ortası) --- */
+  .countdown-box{display:none; align-items:center; gap:.7rem; justify-self:center; padding:.5rem 1.2rem; border-radius:999px;
+    background:linear-gradient(160deg, rgba(255,255,255,.65), rgba(255,255,255,.30)); border:1px solid var(--glass-border);
+    box-shadow:0 8px 22px -8px var(--glow-sched), inset 0 1px 0 rgba(255,255,255,.7);}
+  .countdown-box.on{display:flex;}
+  .countdown-box .cd-icon{width:1.6rem; height:1.6rem; color:var(--c-sched); flex-shrink:0;}
+  .cd-label{font-size:.7rem; color:var(--text-2); white-space:nowrap;}
+  .cd-value{display:flex; align-items:baseline; gap:.3rem; white-space:nowrap;}
+  .cd-days{font-family:var(--font-display); font-weight:700; font-size:1.6rem; color:var(--c-sched); font-variant-numeric:tabular-nums; line-height:1;}
+  .cd-unit{font-size:.7rem; color:var(--text-2);}
+  .cd-time{font-size:.8rem; color:var(--text-2); font-variant-numeric:tabular-nums; margin-left:.35rem; padding-left:.55rem; border-left:1px solid var(--line-strong);}
+
+  /* --- Media / slideshow --- */
+  .media{grid-area:media; position:relative; overflow:hidden; border-radius:var(--radius-lg); z-index:2;
+    background:var(--glass-fill); -webkit-backdrop-filter:blur(30px) saturate(180%); backdrop-filter:blur(30px) saturate(180%);
+    border:1px solid var(--glass-border); box-shadow:var(--glass-shadow);}
+  .slide{position:absolute; inset:0; opacity:0; transition:opacity 1.1s ease;}
+  .slide.active{opacity:1; z-index:2;}
+  .slide img, .slide video{width:100%; height:100%; object-fit:cover; animation:kenburns 14s ease-in-out forwards;}
+  .slide.noanim img, .slide.noanim video{animation:none;}
+  @keyframes kenburns{from{transform:scale(1);} to{transform:scale(1.08);}}
+  .media-empty{position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1rem; color:var(--text-2);}
+  .media-empty .icon{width:4.2rem; height:4.2rem; color:var(--text-2); opacity:.4; stroke-width:1.2;}
+  .media-empty span{font-size:1.05rem;}
+  .media-caption{position:absolute; left:0; right:0; bottom:0; z-index:3; padding:1.1rem 1.6rem; font-size:1.05rem; color:#fff;
+    background:linear-gradient(180deg, transparent, rgba(0,0,0,.55)); display:none;}
+  .media-caption.show{display:block;}
+
+  /* --- Side columns (sol + sağ) --- */
+  .side{overflow:hidden; padding:0; display:flex; flex-direction:column; gap:.85rem; min-height:0;}
+  .side-left{grid-area:left;}
+  .side-right{grid-area:right;}
+  .side-left .panel:last-child{flex:1;}
+  .panel{background:var(--glass-fill); -webkit-backdrop-filter:blur(26px) saturate(180%); backdrop-filter:blur(26px) saturate(180%);
+    border:1px solid var(--glass-border); box-shadow:var(--glass-shadow); border-radius:var(--radius-lg); padding:.85rem 1rem; min-height:0;}
+  .panel-head{display:flex; align-items:center; gap:.5rem; font-size:.9rem; font-weight:600; color:var(--text-0); margin-bottom:.5rem;}
+  .panel-head .icon{color:var(--accent); width:1.05rem; height:1.05rem;}
+
+  /* modül renk kimlikleri: ikon + hafif renkli cam tonu + rengin ışıltısı (glow) */
+  .panel-duty{background:linear-gradient(var(--glow-duty), var(--glow-duty)), var(--glass-fill); box-shadow:0 16px 34px -18px var(--c-duty), var(--glass-shadow);}
+  .panel-duty .panel-head .icon{color:var(--c-duty);}
+  .panel-sched{display:flex; flex-direction:column; min-height:0; background:linear-gradient(var(--glow-sched-bg), var(--glow-sched-bg)), var(--glass-fill); box-shadow:0 16px 34px -18px var(--c-sched), var(--glass-shadow);}
+  .panel-sched .panel-head .icon{color:var(--c-sched);}
+  .panel-weather{background:linear-gradient(var(--glow-weather), var(--glow-weather)), var(--glass-fill); box-shadow:0 16px 34px -18px var(--c-weather), var(--glass-shadow);}
+  .panel-weather .panel-head .icon{color:var(--c-weather);}
+  .panel-module{background:linear-gradient(var(--glow-module), var(--glow-module)), var(--glass-fill); box-shadow:0 16px 34px -18px var(--c-module), var(--glass-shadow);}
+  .panel-module .panel-head .icon{color:var(--c-module);}
+  .panel-menu{background:linear-gradient(var(--glow-menu), var(--glow-menu)), var(--glass-fill); box-shadow:0 16px 34px -18px var(--c-menu), var(--glass-shadow);}
+  .panel-menu .panel-head .icon{color:var(--c-menu);}
+
+  /* haftalık yemek menüsü */
+  .menu-panel{flex:1.15; display:flex; flex-direction:column; min-height:0;}
+  #menuList{flex:1; overflow:hidden; display:flex; flex-direction:column; gap:.05rem;
+    -webkit-mask-image:linear-gradient(to bottom, black 88%, transparent 100%); mask-image:linear-gradient(to bottom, black 88%, transparent 100%);}
+  .menu-row{display:flex; align-items:flex-start; gap:.55rem; padding:.32rem 0; border-bottom:1px dashed var(--line);}
+  .menu-row:last-child{border-bottom:none;}
+  .menu-day{flex-shrink:0; width:3.4rem; font-size:.62rem; font-weight:700; color:var(--text-2); background:rgba(20,25,40,.07); padding:.22rem .3rem; border-radius:999px; text-align:center;}
+  .menu-row.today .menu-day{background:var(--c-menu); color:#fff;}
+  .menu-items{font-size:.76rem; color:var(--text-1); line-height:1.3; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;}
+  .menu-row.today .menu-items{color:var(--text-0); font-weight:600;}
+  .honor-blk{padding:.45rem .2rem .4rem; border-bottom:1px dashed var(--line);}
+  .honor-blk:last-child{border-bottom:none;}
+  .honor-lbl{display:inline-block; font-size:.62rem; font-weight:800; color:#fff; background:var(--c-menu); padding:.2rem .6rem; border-radius:999px;}
+  .honor-name{font-size:1.25rem; font-weight:800; color:var(--text-0); margin-top:.2rem; line-height:1.2;}
+  .honor-sub{font-size:.74rem; color:var(--text-1); margin-top:.1rem;}
+  .honor-none{font-size:.82rem; color:var(--text-2); padding:.6rem .2rem;}
+
+  /* duty */
+  #dutyList{display:flex; flex-direction:column; gap:.1rem;}
+  .duty-row{display:grid; grid-template-columns:5.6rem 1fr; align-items:center; gap:.6rem; padding:.3rem 0; border-bottom:1px dashed var(--line);}
+  .duty-row:last-child{border-bottom:none;}
+  .duty-tag{font-size:.64rem; font-weight:700; color:#fff; background:var(--c-duty); padding:.2rem .5rem; border-radius:999px; text-align:center; letter-spacing:.2px;}
+  .duty-name{font-size:.88rem; color:var(--text-0); overflow-wrap:break-word; line-height:1.25;}
+
+  /* schedule */
+  .sched-hero{display:flex; align-items:baseline; justify-content:space-between; margin-bottom:.4rem;}
+  .sched-hero-label{font-size:.78rem; color:var(--text-2);}
+  .sched-hero-time{font-family:var(--font-display); font-weight:700; font-size:1.5rem; color:var(--c-sched); font-variant-numeric:tabular-nums;}
+  .sched-bar{height:.35rem; border-radius:1rem; background:rgba(20,25,40,.1); overflow:hidden; margin-bottom:.5rem;}
+  .sched-bar-fill{height:100%; background:var(--c-sched); width:0%; transition:width 1s linear;}
+  .sched-list{columns:2; column-gap:.6rem; flex:1; min-height:0; overflow:hidden;
+    -webkit-mask-image:linear-gradient(to bottom, black 96%, transparent 100%); mask-image:linear-gradient(to bottom, black 96%, transparent 100%);}
+  .sched-item{display:flex; align-items:center; gap:.45rem; padding:.3rem .5rem; border-radius:.7rem; break-inside:avoid; margin-bottom:.28rem; border-left:3px solid transparent;}
+  .sched-item .icon{width:1rem; height:1rem; flex-shrink:0;}
+  .sched-item-text{display:flex; flex-direction:column; min-width:0; flex:1; gap:.04rem;}
+  .sched-item-name{font-size:.76rem; font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .sched-item-time{font-size:.6rem; font-weight:700; font-variant-numeric:tabular-nums; opacity:.85;}
+  .sched-item.cls{background:rgba(37,99,235,.20); border-left-color:#2563eb;}
+  .sched-item.cls .icon{color:#2251c9;}
+  .sched-item.cls .sched-item-name, .sched-item.cls .sched-item-time{color:#1d4ed8;}
+  .sched-item.brk{background:rgba(22,163,74,.22); border-left-color:#16a34a;}
+  .sched-item.brk .icon{color:#148a4a;}
+  .sched-item.brk .sched-item-name, .sched-item.brk .sched-item-time{color:#0f8a44;}
+  .sched-item.now{background:var(--glow-sched); box-shadow:0 0 0 2px var(--c-sched) inset; border-left-color:var(--c-sched);}
+  .sched-item.now .sched-item-name, .sched-item.now .sched-item-time{color:var(--text-0);}
+  .sched-item.past{opacity:.55;}
+  .sched-now-badge{background:var(--c-sched); color:#fff; font-size:.54rem; font-weight:800; letter-spacing:.3px; padding:.15rem .4rem; border-radius:999px; flex-shrink:0;}
+
+  /* weather + module row */
+  .duo{display:grid; grid-template-columns:1fr 1fr; gap:.85rem; flex:1; min-height:0;}
+  .duo .panel{display:flex; flex-direction:column; min-height:0;}
+  .weather-icon{width:2.1rem; height:2.1rem; color:var(--c-weather);}
+  .weather-temp{font-family:var(--font-display); font-weight:700; font-size:1.7rem; line-height:1; color:var(--c-weather);}
+  .weather-cond{font-size:.8rem; color:var(--text-1); margin-top:.15rem;}
+  .weather-meta{font-size:.7rem; color:var(--text-2); margin-top:.4rem; display:flex; gap:.6rem;}
+  .module-title{font-weight:600; font-size:.86rem; margin-bottom:.3rem; flex-shrink:0; color:var(--c-module);}
+  .module-text{font-size:.76rem; color:var(--text-1); white-space:pre-wrap; line-height:1.4; flex:1; overflow:hidden;
+    -webkit-mask-image:linear-gradient(to bottom, black 75%, transparent 100%); mask-image:linear-gradient(to bottom, black 75%, transparent 100%);}
+
+  /* --- Ticker --- */
+  .ticker{grid-area:ticker; display:flex; align-items:center; overflow:hidden; border-radius:var(--radius-lg); padding:.5rem .6rem; gap:.8rem; z-index:2;
+    background:var(--glass-fill); -webkit-backdrop-filter:blur(26px) saturate(180%); backdrop-filter:blur(26px) saturate(180%); border:1px solid var(--glass-border); box-shadow:var(--glass-shadow);}
+  .ticker-tag{flex-shrink:0; height:2.7rem; padding:0 1.2rem; display:flex; align-items:center; justify-content:center; gap:.5rem; background:var(--c-ticker); color:#fff; font-weight:700; font-size:1rem; letter-spacing:.2px; border-radius:999px; box-shadow:0 8px 18px -8px var(--c-ticker);}
+  .ticker-tag .icon{width:1.2rem; height:1.2rem;}
+  .ticker-track{flex:1; position:relative; overflow:hidden; display:flex; align-items:center;}
+  .ticker-move{display:inline-flex; white-space:nowrap; animation:ticker-scroll linear infinite; padding-left:100%;}
+  .ticker-move span{font-size:1.4rem; font-weight:600; padding-right:5rem; color:var(--text-0);}
+  @keyframes ticker-scroll{from{transform:translateX(0);} to{transform:translateX(-100%);}}
+
+  /* --- floating controls --- */
+  .kiosk-controls{position:fixed; top:calc(6.4rem + 1.7rem); right:1.6rem; display:flex; gap:.5rem; z-index:50; opacity:0; transition:opacity .4s ease; pointer-events:none;}
+  .kiosk-controls.show{opacity:1; pointer-events:auto;}
+  .ctrl-btn{width:2.6rem; height:2.6rem; border-radius:50%; border:1px solid var(--glass-border); background:rgba(255,255,255,.55); color:var(--text-1); display:flex; align-items:center; justify-content:center; -webkit-backdrop-filter:blur(14px); backdrop-filter:blur(14px); box-shadow:0 8px 20px -10px rgba(10,15,30,.4);}
+  .ctrl-btn:hover{color:var(--text-0); border-color:var(--accent);}
+  .ctrl-btn .icon{width:1.2rem; height:1.2rem;}
+
+  /* ============ LOGIN ============ */
+  /* ---- Acil duyuru (bilgisayar sayfası) + önizleme ---- */
+  .nav-btn[data-tab="acil"]:not(.active){color:#ff9a9a;}
+  #emgPc{position:fixed; inset:0; z-index:9999; display:none; align-items:center; justify-content:center; color:#fff; background:var(--e2,#8a0d13); text-align:center; font-family:inherit;}
+  #emgPc .emg-pulse{position:absolute; inset:0; background:var(--e1,#e0242c); opacity:0; animation:emgp 1.6s ease-in-out infinite;}
+  @keyframes emgp{0%{opacity:0}50%{opacity:.55}100%{opacity:0}}
+  #emgPc .emg-box{position:relative; width:84%; max-height:84%; border:.5rem solid rgba(255,255,255,.9); border-radius:2rem; padding:2.2rem 3rem; display:flex; flex-direction:column; align-items:center; justify-content:center;}
+  #emgPc.yellow{color:#1b1300;} #emgPc.yellow .emg-box{border-color:rgba(27,19,0,.9);}
+  #emgPc .emg-ic .icon{width:7rem; height:7rem; stroke-width:1.4;}
+  #emgPc .emg-title{font-weight:800; text-transform:uppercase; letter-spacing:.1rem; line-height:1.1; font-size:4.2rem; margin-top:.4rem;}
+  #emgPc .emg-text{font-weight:700; font-size:2.2rem; line-height:1.3; margin-top:1rem; white-space:pre-line;}
+  #emgPc .emg-actions{position:absolute; left:1.2rem; bottom:1rem; display:flex; gap:.6rem; z-index:3; flex-wrap:wrap;}
+  #emgPc .emg-actions .btn{background:rgba(0,0,0,.45); border-color:rgba(255,255,255,.7); color:#fff; font-size:.85rem; padding:.5rem .9rem;}
+  #emgPc .emg-hint{position:absolute; top:1rem; left:0; right:0; font-size:1rem; font-weight:700; opacity:.9; z-index:3;}
+  #emgPc .emg-time{position:absolute; right:1.4rem; bottom:1rem; font-size:1.1rem; font-weight:700; opacity:.85;}
+  .emg-chip{display:inline-block; width:2.2rem; height:2.2rem; border-radius:50%; border:3px solid transparent; cursor:pointer; margin-right:.4rem; vertical-align:middle;}
+  .emg-chip.sel{border-color:#1c2333; box-shadow:0 0 0 2px #fff inset;}
+  .emg-preset{display:inline-flex; align-items:center; gap:.2rem; margin:0 .4rem .4rem 0;}
+  .emg-preset .x{border:0; background:transparent; color:#a33; font-weight:800; cursor:pointer; padding:0 .3rem;}
+  .cl-row{display:flex; align-items:center; gap:.7rem; padding:.55rem 0; border-bottom:1px dashed #e3e7f0; font-size:.9rem;}
+  .cl-row:last-child{border-bottom:none;}
+  .cl-dot{width:.8rem; height:.8rem; border-radius:50%; flex:none;}
+  #upBarWrap{display:none; height:.55rem; border-radius:99px; background:#e3e7f0; margin-top:.8rem; overflow:hidden;}
+  #upBar{height:100%; width:0; background:#f2a93b; transition:width .2s;}
+  #menuPrev{position:fixed; inset:0; background:rgba(10,14,24,.55); display:none; align-items:center; justify-content:center; z-index:210;}
+  #menuPrev.show{display:flex;}
+  #menuPrev .mp-card{background:#fff; border-radius:18px; padding:1.4rem 1.6rem; width:min(46rem,92vw); max-height:88vh; display:flex; flex-direction:column; color:#1c2333;}
+  #menuPrev .mp-list{overflow:auto; margin:.8rem 0; border:1px solid #e3e7f0; border-radius:12px;}
+  #menuPrev .mp-row{display:flex; gap:.8rem; padding:.5rem .8rem; border-bottom:1px solid #eef0f6; font-size:.88rem;}
+  #menuPrev .mp-row b{flex:none; width:7.5rem;}
+  #menuPrev .mp-list.duty .mp-row b{width:14rem;}
+  #loginModal{position:fixed; inset:0; background:rgba(10,14,24,.55); -webkit-backdrop-filter:blur(8px); backdrop-filter:blur(8px); display:none; align-items:center; justify-content:center; z-index:10000;}
+  #loginModal.show{display:flex;}
+  .login-card{width:23rem; max-width:90vw; background:var(--glass-fill); -webkit-backdrop-filter:blur(34px) saturate(180%); backdrop-filter:blur(34px) saturate(180%); border:1px solid var(--glass-border); border-radius:var(--radius-lg); padding:2rem; box-shadow:0 40px 80px -20px rgba(5,8,15,.55), inset 0 1px 0 rgba(255,255,255,.7); color:var(--text-0);}
+  .login-card h2{margin:0 0 .3rem; font-family:var(--font-display); font-weight:600; font-size:1.4rem; color:var(--text-0);}
+  .login-card p{margin:0 0 1.3rem; color:var(--text-2); font-size:.85rem;}
+  .field{margin-bottom:1rem;}
+  .field label{display:block; font-size:.8rem; color:var(--text-1); margin-bottom:.35rem;}
+  .field input, .field textarea, .field select{width:100%; padding:.65rem .75rem; border-radius:.7rem; border:1px solid var(--line-strong); background:rgba(255,255,255,.55); color:var(--text-0); font-size:.92rem; font-family:inherit;}
+  .field input:focus, .field textarea:focus, .field select:focus{outline:2px solid var(--accent); outline-offset:1px;}
+  .btn{display:inline-flex; align-items:center; justify-content:center; gap:.45rem; padding:.65rem 1.1rem; border-radius:999px; border:1px solid var(--line-strong); background:rgba(255,255,255,.5); color:var(--text-0); font-size:.9rem; font-weight:600;}
+  .btn:hover{border-color:var(--accent);}
+  .btn.primary{background:var(--accent); color:#2b1a00; border-color:var(--accent);}
+  .btn.primary:hover{filter:brightness(1.05);}
+  .btn.danger{background:transparent; color:var(--danger); border-color:rgba(214,69,69,.4);}
+  .btn.ghost{background:transparent;}
+  .btn.block{width:100%;}
+  .btn .icon{width:1rem; height:1rem;}
+  .login-error{color:var(--danger); font-size:.82rem; margin-top:.6rem; min-height:1.1rem;}
+  .login-hint{margin-top:1.1rem; font-size:.75rem; color:var(--text-2); border-top:1px solid var(--line); padding-top:.8rem;}
+
+  /* ============ ADMIN ============ */
+  #adminPanel{position:fixed; inset:0; background:#f4f6fb; color:#1c2333; display:none; z-index:150; font-family:var(--font-body);}
+  #adminPanel.show{display:flex;}
+  .admin-nav{width:15.5rem; flex-shrink:0; background:#12182a; color:#d7deee; display:flex; flex-direction:column; padding:1.1rem .8rem;}
+  .admin-brand{display:flex; align-items:center; gap:.6rem; padding:.4rem .5rem 1.2rem; border-bottom:1px solid rgba(255,255,255,.09); margin-bottom:.8rem;}
+  .admin-brand .icon{width:1.5rem; height:1.5rem; color:#f2a93b;}
+  .admin-brand b{font-family:var(--font-display); font-size:1.05rem;}
+  .nav-btn{display:flex; align-items:center; gap:.6rem; text-align:left; background:none; border:none; color:#aeb7cc; padding:.62rem .7rem; border-radius:.6rem; font-size:.88rem; margin-bottom:.15rem;}
+  .nav-btn .icon{width:1.05rem; height:1.05rem;}
+  .nav-btn:hover{background:rgba(255,255,255,.06); color:#fff;}
+  .nav-btn.active{background:#f2a93b; color:#1a1200; font-weight:700;}
+  .admin-nav-bottom{margin-top:auto; display:flex; flex-direction:column; gap:.4rem; padding-top:.8rem; border-top:1px solid rgba(255,255,255,.09);}
+
+  .admin-main{flex:1; overflow-y:auto; padding:1.8rem 2.4rem;}
+  .admin-head{display:flex; align-items:baseline; justify-content:space-between; margin-bottom:1.4rem; flex-wrap:wrap; gap:.6rem;}
+  .admin-head h1{font-family:var(--font-display); font-size:1.6rem; margin:0;}
+  .admin-head p{color:#6b7690; font-size:.85rem; margin:.2rem 0 0;}
+  .card{background:#fff; border:1px solid #e3e7f0; border-radius:16px; padding:1.4rem 1.5rem; margin-bottom:1.2rem;}
+  .card h3{margin:0 0 .2rem; font-size:1.02rem;}
+  .card .desc{color:#7b8398; font-size:.8rem; margin:0 0 1rem;}
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:1rem;}
+  .grid3{display:grid; grid-template-columns:1fr 1fr 1fr; gap:1rem;}
+  #adminPanel .field label{color:#5b6478;}
+  #adminPanel .field input, #adminPanel .field textarea, #adminPanel .field select{background:#f7f8fc; border:1px solid #dbe0ea; color:#1c2333;}
+  #adminPanel .field input:focus, #adminPanel .field textarea:focus, #adminPanel .field select:focus{outline:2px solid #f2a93b;}
+  #adminPanel .btn{background:#eef0f6; border-color:#dbe0ea; color:#1c2333;}
+  #adminPanel .btn.primary{background:#f2a93b; border-color:#f2a93b; color:#1a1200;}
+  #adminPanel .btn.danger{color:#c23a3a; border-color:#f3c9c9; background:#fff5f5;}
+
+  .row-list{display:flex; flex-direction:column; gap:.55rem;}
+  .row-item{display:flex; align-items:center; gap:.5rem; background:#f7f8fc; border:1px solid #e3e7f0; border-radius:.7rem; padding:.55rem .6rem;}
+  .row-item input, .row-item select{flex:1; border:1px solid #dbe0ea; border-radius:.5rem; padding:.4rem .55rem; background:#fff; font-size:.85rem; font-family:inherit;}
+  .row-item .mini{max-width:6.5rem; flex:none;}
+  .row-item .day-sel{max-width:8.2rem; flex:none;}
+  .panel-head .duty-day{margin-left:auto; font-size:.72rem; font-weight:600; opacity:.7;}
+  .row-item .iconbtn{background:none; border:none; color:#8891a4; padding:.3rem; border-radius:.4rem; flex-shrink:0;}
+  .row-item .iconbtn:hover{background:#e9ecf3; color:#1c2333;}
+  .row-item .iconbtn.del:hover{color:#c23a3a;}
+
+  .media-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(11.5rem,1fr)); gap:.8rem;}
+  .media-card{border:1px solid #e3e7f0; border-radius:.8rem; overflow:hidden; background:#f7f8fc;}
+  .media-card .thumb{height:6rem; background:#0c1220 center/cover no-repeat; display:flex; align-items:center; justify-content:center; color:#5c6f96; position:relative;}
+  .media-card .thumb .icon{width:1.6rem; height:1.6rem;}
+  .media-card .thumb video{width:100%; height:100%; object-fit:cover;}
+  .media-card .mc-body{padding:.5rem .6rem;}
+  .media-card .mc-name{font-size:.75rem; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .media-card .mc-row{display:flex; align-items:center; flex-wrap:wrap; gap:.3rem; margin-top:.35rem;}
+  .media-card .mc-row .iconbtn{flex:none; padding:.25rem;}
+  .media-card .mc-row .mc-spacer{flex:1; min-width:0;}
+  .media-card input{width:4.2rem; font-size:.75rem; padding:.25rem .35rem; border-radius:.4rem; border:1px solid #dbe0ea;}
+  .dropzone{border:2px dashed #cfd6e4; border-radius:.9rem; padding:1.6rem; text-align:center; color:#7b8398; font-size:.85rem; margin-bottom:1rem; cursor:pointer; background:#f7f8fc;}
+  .dropzone:hover{border-color:#f2a93b; color:#5b6478;}
+  .dropzone .icon{width:1.8rem; height:1.8rem; margin-bottom:.4rem; color:#a9b1c4;}
+
+  .swatches{display:flex; gap:.5rem; flex-wrap:wrap;}
+  .swatch{width:2.2rem; height:2.2rem; border-radius:50%; border:2px solid #fff; box-shadow:0 0 0 1px #dbe0ea; cursor:pointer;}
+  .swatch.sel{box-shadow:0 0 0 2px #1c2333;}
+  .theme-swatches{display:flex; gap:.8rem; flex-wrap:wrap;}
+  .theme-chip{width:6rem; cursor:pointer; text-align:center;}
+  .theme-chip .theme-preview{height:3.4rem; border-radius:.8rem; border:2px solid transparent; box-shadow:0 0 0 1px #dbe0ea; position:relative; overflow:hidden; margin-bottom:.35rem; display:flex; align-items:flex-end; justify-content:center; padding-bottom:.4rem;}
+  .theme-chip .theme-dots{display:flex; gap:.25rem;}
+  .theme-chip .theme-dot{width:.5rem; height:.5rem; border-radius:50%; box-shadow:0 0 0 1px rgba(255,255,255,.4);}
+  .theme-chip.sel .theme-preview{border-color:#1c2333;}
+  .theme-chip span{font-size:.72rem; color:#5b6478;}
+  .logo-uploader{display:flex; align-items:center; gap:1rem;}
+  .logo-preview{width:4.4rem; height:4.4rem; border-radius:.8rem; background:#0c1220; display:flex; align-items:center; justify-content:center; overflow:hidden; border:1px solid #dbe0ea;}
+  .logo-preview img{width:100%; height:100%; object-fit:cover;}
+  .logo-preview .icon{width:2rem; height:2rem; color:#5c6f96;}
+  .toast{position:fixed; bottom:1.4rem; right:1.4rem; background:#1c2333; color:#fff; padding:.7rem 1.1rem; border-radius:.7rem; font-size:.85rem; z-index:400; opacity:0; transform:translateY(8px); transition:.25s;}
+  .toast.show{opacity:1; transform:translateY(0);}
+  .tip{background:#fff8e9; border:1px solid #f3e2b3; color:#7a5b12; font-size:.8rem; border-radius:.7rem; padding:.7rem .9rem; margin-bottom:1rem;}
+  .kbd{font-family:monospace; background:#eef0f6; border:1px solid #dbe0ea; border-radius:.3rem; padding:0 .3rem;}
+
+  ::-webkit-scrollbar{width:8px; height:8px;}
+  ::-webkit-scrollbar-thumb{background:#c8cfdd; border-radius:6px;}
+
+  @media (max-width:1300px){
+    #kiosk{grid-template-columns:18rem 1fr 18rem;}
+  }
+  @media (max-width:1100px){
+    .admin-nav{width:12rem;}
+  }
+
+  /* ============ KIOSK PERFORMANSI ============
+     backdrop-filter:blur(26–30px) 8 büyük panelde her karede arka planı yeniden bulanıklaştırır; içinde sürekli kayan şerit
+     ve oynayan video olunca GPU sürekli %100'e yakın çalışır, uzun sürede ısınma/kare düşmesi ve mini PC'lerde takılma yapar.
+     Panellerin arkası durağan, yumuşak bir degrade olduğundan bulanıklık görsel olarak neredeyse fark yaratmaz:
+     kiosk panellerinde kapatılır, yalnızca yönetim/giriş pencerelerinde kalır. Dolgu biraz koyulaştırılarak aynı cam görünümü korunur. */
+  #kiosk .topbar, #kiosk .media, #kiosk .panel, #kiosk .ticker{
+    -webkit-backdrop-filter:none; backdrop-filter:none;
+    background-color:rgba(255,255,255,.08);
+  }
+  /* Ken Burns yalnızca görünen slayttaki GÖRSELE uygulanır: gizli katmanda ve videoda (her kare yeniden ölçeklenir) çalışmaz */
+  .slide img, .slide video{animation:none;}
+  .slide.active img{animation:kenburns 14s ease-in-out forwards;}
+  .slide.noanim img{animation:none;}
+  /* Şerit: kaydırma compositor'da; kenar katmanı önceden oluşturulur */
+  .ticker-move{will-change:transform; padding-left:0;}
+  .ticker-track{contain:layout paint;}
+  .media, .panel{contain:layout paint;}
+  @media (prefers-reduced-motion: reduce){ .slide.active img{animation:none;} }
+
+  /* ============ EKRAN ÖLÇEĞİ ve SIĞDIRMA ============
+     Eski kural clamp(14px, …, 20px) yazıyı 20px'te durduruyordu: 4K ekranda tüm metinler yarı boyutta kalıyor, medya alanı
+     ekranı yutuyordu; 1366×768'de ise düzen orantılı küçülmediği için ders listesi hiç görünmüyordu. Artık kök yazı boyutu
+     1920×1080 tasarımına göre hem genişlik hem yükseklikle orantılı (hangisi darsa): her 16:9 ekranda aynı yerleşim. */
+  html{font-size:max(11px, min(1.0417vw, 1.852vh));}
+  /* Uzun okul adı: tek satıra sığmıyorsa iki satıra iner ve küçülür (eskiden yer varken "…" ile kesiliyordu) */
+  .brand-name.long{white-space:normal; font-size:1.2rem; line-height:1.15; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; max-width:38rem;}
+  /* Ders listesi sığmazsa sıkı düzen: iç ve dış boşluklar daralır, ad/saat yine iki satır (son satır yarım kesik kalmasın) */
+  .sched-list.compact .sched-item{padding:.12rem .5rem; margin-bottom:.16rem;}
+  .sched-list.compact .sched-item-text{gap:0;}
+
+  /* ============ GÖRSELİ MEDYA ALANINA SIĞDIRMA ============
+     Görseller eskiden object-fit:cover ile alanı doldurmak için kırpılıyordu (dikey afişin üstü/altı, geniş pankartın
+     kenarları kayboluyordu) ve Ken Burns yakınlaştırması %8 daha kırpıyordu. Artık görselin tamamı görünür (contain);
+     boş kalan kenarları aynı görselin bulanık, koyulaştırılmış kopyası doldurur. Oran zaten uyuyorsa arka plan eklenmez. */
+  .slide img.fit{position:absolute; inset:0; object-fit:contain; animation:none !important;}
+  .slide img.fit-bg{position:absolute; inset:-12%; width:124%; height:124%; max-width:none; object-fit:cover; filter:blur(26px) brightness(.55) saturate(1.15); animation:none !important;}
+
+  /* ============ TASARIM GÖZDEN GEÇİRME (Kasım 2026) ============ */
+  /* Sağ sütun: menü satırları kartın yüksekliğine eşit dağılır, hava durumu ve bilgilendirme içeriği dikeyde ortalanır:
+     kartların alt yarısı boş kalmaz, üç kart da "dolu" okunur. */
+  #menuList{justify-content:space-evenly;}
+  .panel-weather{justify-content:center;}
+  .panel-weather .panel-head{align-self:stretch;}
+  .weather-main{display:flex; align-items:center; gap:.7rem; margin:.1rem 0 .2rem;}
+  .weather-main .weather-icon{width:3.4rem; height:3.4rem; flex-shrink:0;}
+  .weather-main .weather-temp{font-size:3rem; letter-spacing:-.02em;}
+  .panel-weather .weather-cond{font-size:.95rem; font-weight:600; color:var(--text-0);}
+  .panel-weather .weather-meta{font-size:.78rem;}
+  .panel-module .module-text{font-size:.84rem; line-height:1.45;}
+  .panel-module .module-title{font-size:.95rem;}
+  .weather-meta{flex-wrap:wrap; row-gap:.15rem;}
+  .panel-module{justify-content:center;}
+  .panel-module .panel-head{align-self:stretch;}
+  .panel-module .module-text{flex:0 1 auto;}
+  .module-text{-webkit-mask-image:none; mask-image:none;}
+  .module-text.more{-webkit-mask-image:linear-gradient(to bottom, black 75%, transparent 100%); mask-image:linear-gradient(to bottom, black 75%, transparent 100%);}
+  /* Başlıklar tek satır: dar kartta "Hava durumu" ikiye bölünmesin */
+  .panel-head{white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .panel-head > span{overflow:hidden; text-overflow:ellipsis;}
+  /* Nöbetçi adı tek satır: uzun ad kartı uzatıp ders programını sıkıştırmasın */
+  .duty-name{white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  /* Ders listesi: sıkı düzen de yetmezse yazı küçülür (geçmiş satır gizlemeden önce) */
+  .sched-list.tiny .sched-item{padding:.08rem .4rem; margin-bottom:.12rem; border-left-width:2px;}
+  .sched-list.tiny .sched-item-name{font-size:.68rem;}
+  .sched-list.tiny .sched-item-time{font-size:.54rem;}
+  .sched-list.tiny .sched-item .icon{width:.8rem; height:.8rem;}
+  /* Kiosk düğmeleri: menü başlığının üstüne değil, sağ alt köşeye (yalnızca fareyle görünür) */
+  .kiosk-controls{top:auto !important; bottom:1.25rem; right:1.4rem;}
+  /* Yönetim kenar çubuğu alt düğmeleri: "pasif" gibi görünmesin */
+  #adminPanel .admin-nav-bottom .btn{background:rgba(255,255,255,.07); color:#eaf0ff; border-color:rgba(255,255,255,.22);}
+  #adminPanel .admin-nav-bottom .btn:hover{background:rgba(255,255,255,.14); border-color:rgba(255,255,255,.4);}
+
+  /* ============ OKUNABİLİRLİK (ölçülmüş karşıtlık, WCAG 4.5:1 / büyük yazı 3:1) ============
+     Bölüm renkleri metin olarak --ink-* (applyTheme -> setInks, panel zeminine göre hesaplanır) kullanır;
+     simgeler ve kart tonları özgün rengi korur. */
+  .cd-days, .sched-hero-time{color:var(--ink-sched);}
+  .weather-temp, .weather-main .weather-icon{color:var(--ink-weather);}
+  .module-title{color:var(--ink-module);}
+  .menu-day{color:var(--text-1);}
+  .duty-tag{background:var(--ink-duty);}
+  .menu-row.today .menu-day{background:var(--ink-menu);}
+  .sched-item.cls .sched-item-name, .sched-item.cls .sched-item-time{color:#1e3a8a;}
+  .sched-item.brk .sched-item-name, .sched-item.brk .sched-item-time{color:#14532d;}
+  .sched-item-time{opacity:1;}
+  .sched-item.past{opacity:.74;} /* geçmiş ders: soluk ama okunur (TV ile aynı ölçüt) */
+  /* Azaltılmış hareket: süs geçişleri kapanır; kayan yazı içerik taşıdığı için durdurulmaz (yoksa sığmayan duyuru hiç görünmez) */
+  @media (prefers-reduced-motion: reduce){ .slide{transition:none;} }
+
+  /* Renkli etiketlerde yazı rengi zemine göre (sarı "Duyuru" etiketinde beyaz yazı 1.75:1 kalıyordu) */
+  .ticker-tag{color:var(--on-ticker);}
+</style>
+</head>
+<body>
+
+<!-- ============ SVG ICON SPRITE ============ -->
+<svg style="display:none">
+  <symbol id="i-school" viewBox="0 0 24 24"><path d="M12 3 2 8l10 5 10-5-10-5Z"/><path d="M6 10.5V16c0 1.5 2.7 3 6 3s6-1.5 6-3v-5.5"/><path d="M22 8v6"/></symbol>
+  <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.4"/><path d="M5 20c1-3.8 4-5.6 7-5.6s6 1.8 7 5.6"/></symbol>
+  <symbol id="i-bell" viewBox="0 0 24 24"><path d="M12 3c-2.8 0-5 2.4-5 5.3v3.4l-1.8 3.1h13.6L17 11.7V8.3C17 5.4 14.8 3 12 3Z"/><path d="M10 19.5a2 2 0 0 0 4 0"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.4M12 19.1v2.4M4.5 12H2.1M21.9 12h-2.4M5.6 5.6l1.7 1.7M16.7 16.7l1.7 1.7M18.4 5.6l-1.7 1.7M7.3 16.7l-1.7 1.7"/></symbol>
+  <symbol id="i-cloud" viewBox="0 0 24 24"><path d="M7 18h10.5a3.8 3.8 0 0 0 .4-7.6A5.5 5.5 0 0 0 7.3 9.2 4.2 4.2 0 0 0 7 18Z"/></symbol>
+  <symbol id="i-cloud-sun" viewBox="0 0 24 24"><circle cx="7.5" cy="7" r="2.6"/><path d="M7.5 2.6v1.4M3.8 7H2.4M4.6 3.6l1 1M10.4 3.6l-1 1"/><path d="M9 18h9a3.3 3.3 0 0 0 .3-6.6 4.8 4.8 0 0 0-9-1.6A3.7 3.7 0 0 0 9 18Z"/></symbol>
+  <symbol id="i-cloud-rain" viewBox="0 0 24 24"><path d="M6.5 15h11a3.8 3.8 0 0 0 .4-7.6 5.5 5.5 0 0 0-10.6-1.2A4.2 4.2 0 0 0 6.5 15Z"/><path d="M8 18.5 7 21M12 18.5l-1 2.5M16 18.5l-1 2.5"/></symbol>
+  <symbol id="i-cloud-snow" viewBox="0 0 24 24"><path d="M6.5 14h11a3.8 3.8 0 0 0 .4-7.6 5.5 5.5 0 0 0-10.6-1.2A4.2 4.2 0 0 0 6.5 14Z"/><path d="M8 17.5v3M12 17.5v3M16 17.5v3M6.5 19h3M10.5 19h3M14.5 19h3"/></symbol>
+  <symbol id="i-module" viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"/><path d="M14.5 3v4.5H19M9 12h6M9 15.5h6"/></symbol>
+  <symbol id="i-mega" viewBox="0 0 24 24"><path d="M3 10v4h3l6 4V6L6 10H3Z"/><path d="M15 8.5a4 4 0 0 1 0 7M17.5 5.5a7.8 7.8 0 0 1 0 13"/></symbol>
+  <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.1"/><path d="M12 3.5v2.2M12 18.3v2.2M20.5 12h-2.2M5.7 12H3.5M17.7 6.3l-1.5 1.5M7.8 16.2l-1.5 1.5M17.7 17.7l-1.5-1.5M7.8 7.8 6.3 6.3"/></symbol>
+  <symbol id="i-image" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.6"/><path d="m4 17 5-5 3.5 3.5L17 11l3 3"/></symbol>
+  <symbol id="i-video" viewBox="0 0 24 24"><rect x="3" y="6" width="13" height="12" rx="2"/><path d="m21 9-5 3 5 3V9Z"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4.6c0-.6.5-1.1 1.1-1.1h3.8c.6 0 1.1.5 1.1 1.1V7M6 7l1 12.4c0 .9.8 1.6 1.7 1.6h6.6c.9 0 1.7-.7 1.7-1.6L18 7"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-logout" viewBox="0 0 24 24"><path d="M9 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h3M16 16l4-4-4-4M20 12H9"/></symbol>
+  <symbol id="i-back" viewBox="0 0 24 24"><path d="M19 12H5M11 6l-6 6 6 6"/></symbol>
+  <symbol id="i-expand" viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></symbol>
+  <symbol id="i-up" viewBox="0 0 24 24"><path d="M12 19V5M6 11l6-6 6 6"/></symbol>
+  <symbol id="i-down" viewBox="0 0 24 24"><path d="M12 5v14M6 13l6 6 6-6"/></symbol>
+  <symbol id="i-key" viewBox="0 0 24 24"><circle cx="8" cy="15" r="3.2"/><path d="M10.3 12.7 18 5M15.5 8l2 2M18.5 5l2 2"/></symbol>
+  <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5M5 20h14"/></symbol>
+  <symbol id="i-upload2" viewBox="0 0 24 24"><path d="M12 21V9M7 14l5-5 5 5M5 4h14"/></symbol>
+  <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.01"/></symbol>
+  <symbol id="i-eye" viewBox="0 0 24 24"><circle cx="7.5" cy="7" r="2.6"/><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7Z"/></symbol>
+  <symbol id="i-wifi" viewBox="0 0 24 24"><path d="M2 8.5c5.5-5 14.5-5 20 0M5.5 12c3.8-3.3 9.2-3.3 13 0M9 15.5c2-1.7 4-1.7 6 0"/><circle cx="12" cy="19" r="1.1" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M4 12.5 9 17.5 20 6.5"/></symbol>
+  <symbol id="i-book" viewBox="0 0 24 24"><path d="M4 5.5c2.5-1 5.5-1 8 .5v13c-2.5-1.5-5.5-1.5-8-.5V5.5Z"/><path d="M20 5.5c-2.5-1-5.5-1-8 .5v13c2.5-1.5 5.5-1.5 8-.5V5.5Z"/></symbol>
+  <symbol id="i-ball" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.2"/><path d="M12 3.8v16.4M4.4 9h15.2M4.4 15h15.2"/></symbol>
+  <symbol id="i-youtube" viewBox="0 0 24 24"><rect x="2.5" y="5.5" width="19" height="13" rx="3.5"/><path d="M10.2 9.3v5.4l5-2.7-5-2.7Z" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-hourglass" viewBox="0 0 24 24"><path d="M6 3h12M6 21h12M7 3c0 4.2 3 5.3 5 6.5-2 1.2-5 2.3-5 6.5M17 3c0 4.2-3 5.3-5 6.5 2 1.2 5 2.3 5 6.5"/></symbol>
+ <symbol id="i-star" viewBox="0 0 24 24"><path d="M12 3.2l2.6 5.4 5.9.8-4.3 4.1 1.1 5.9L12 16.6l-5.3 2.8 1.1-5.9-4.3-4.1 5.9-.8L12 3.2Z"/></symbol>
+ <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 3.2 2.5 19.8h19L12 3.2Z"/><path d="M12 9.6v5"/><path d="M12 17.4v.2"/></symbol>
+  <symbol id="i-food" viewBox="0 0 24 24"><path d="M6 2.5v7a1.6 1.6 0 0 0 1.6 1.6h0a1.6 1.6 0 0 0 1.6-1.6v-7M6 2.5v4.3M9.2 2.5v4.3M7.6 11.1V21.5M16.8 2.5c-1.7 0-2.9 1.9-2.9 5.2s1.2 5.2 2.9 5.2V21.5"/></symbol>
+</svg>
+
+<!-- ============ KIOSK (display) ============ -->
+<div id="kiosk">
+  <div class="topbar">
+    <div class="brand">
+      <div class="brand-logo" id="brandLogo"><svg class="icon"><use href="#i-school"/></svg></div>
+      <div>
+        <div class="brand-name" id="brandName">Okul Adınız</div>
+        <div class="brand-sub" id="brandSub">Dijital Bilgi Panosu</div>
+      </div>
+    </div>
+    <div class="countdown-box" id="countdownBox">
+      <svg class="icon cd-icon"><use href="#i-hourglass"/></svg>
+      <div>
+        <div class="cd-label" id="cdLabel">Sınava Kalan Süre</div>
+        <div class="cd-value"><span class="cd-days" id="cdDays">0</span><span class="cd-unit" id="cdUnit">gün</span><span class="cd-time" id="cdTime">00:00:00</span></div>
+      </div>
+    </div>
+    <div class="clockbox">
+      <div class="clock-time" id="clockTime">00:00:00</div>
+      <div class="clock-date" id="clockDate">-</div>
+    </div>
+  </div>
+
+  <div class="media" id="mediaArea">
+    <div class="slide" id="slideA"></div>
+    <div class="slide" id="slideB"></div>
+    <div class="media-caption" id="mediaCaption"></div>
+    <div class="media-empty" id="mediaEmpty">
+      <svg class="icon"><use href="#i-image"/></svg>
+      <span>Görsel ve video eklemek için yönetim panelini kullanın</span>
+    </div>
+  </div>
+
+  <div class="side side-left">
+    <div class="panel panel-duty">
+      <div class="panel-head"><svg class="icon"><use href="#i-user"/></svg>Nöbetçi personel<span class="duty-day" id="dutyDay"></span></div>
+      <div id="dutyList"></div>
+    </div>
+
+    <div class="panel panel-sched">
+      <div class="panel-head"><svg class="icon"><use href="#i-bell"/></svg>Ders programı</div>
+      <div class="sched-hero">
+        <span class="sched-hero-label" id="schedLabel">Bilgi bekleniyor</span>
+        <span class="sched-hero-time" id="schedCountdown">--:--</span>
+      </div>
+      <div class="sched-bar"><div class="sched-bar-fill" id="schedBarFill"></div></div>
+      <div class="sched-list" id="schedList"></div>
+    </div>
+  </div>
+
+  <div class="side side-right">
+    <div class="panel menu-panel panel-menu">
+      <div class="panel-head"><svg class="icon"><use id="menuHeadUse" href="#i-food"/></svg><span id="menuTitle">Haftalık yemek menüsü</span></div>
+      <div id="menuList"></div>
+    </div>
+
+    <div class="duo">
+      <div class="panel panel-weather">
+        <div class="panel-head"><svg class="icon" id="weatherHeadIcon"><use href="#i-cloud-sun"/></svg>Hava durumu</div>
+        <div class="weather-main"><svg class="icon weather-icon" id="weatherIcon"><use href="#i-cloud-sun"/></svg><div class="weather-temp" id="weatherTemp">--°</div></div>
+        <div class="weather-cond" id="weatherCond">-</div>
+        <div class="weather-meta">
+          <span id="weatherFeels">Hissedilen --°</span>
+        </div>
+        <div class="weather-meta" id="weatherMinMax"></div>
+        <div class="weather-meta" id="weatherUpdated" style="margin-top:.15rem;"></div>
+      </div>
+      <div class="panel panel-module">
+        <div class="panel-head"><svg class="icon"><use href="#i-module"/></svg>Bilgilendirme</div>
+        <div class="module-title" id="moduleTitle">-</div>
+        <div class="module-text" id="moduleText">-</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ticker">
+    <div class="ticker-tag"><svg class="icon"><use href="#i-mega"/></svg>Duyuru</div>
+    <div class="ticker-track">
+      <div class="ticker-move" id="tickerMove"></div>
+    </div>
+  </div>
+</div>
+
+<div class="kiosk-controls" id="kioskControls">
+  <button class="ctrl-btn" id="btnFullscreen" title="Tam ekran"><svg class="icon"><use href="#i-expand"/></svg></button>
+  <button class="ctrl-btn" id="btnAdminOpen" title="Yönetim paneli"><svg class="icon"><use href="#i-gear"/></svg></button>
+</div>
+
+<!-- ============ LOGIN ============ -->
+<div id="emgPc"><div class="emg-pulse"></div><div class="emg-box"><div class="emg-ic"><svg class="icon"><use id="emgPcUse" href="#i-alert"/></svg></div><div class="emg-title" id="emgPcTitle"></div><div class="emg-text" id="emgPcText"></div></div><div class="emg-time" id="emgPcTime"></div>
+  <div class="emg-hint" id="emgPcHint"></div>
+  <div class="emg-actions"><button class="btn" id="emgPcStop">Yönetici: duyuruyu kaldır</button><button class="btn" id="emgPcHide">Bu ekranda gizle (Esc)</button></div></div>
+<div id="menuPrev"><div class="mp-card"><h2 style="margin:0 0 .3rem;" id="mpTitle">Menü önizleme</h2><p id="mpInfo" style="margin:0;font-size:.85rem;color:#5b6478;"></p><div class="mp-list" id="mpList"></div><div style="display:flex;gap:.6rem;justify-content:flex-end;"><button class="btn" id="mpCancel">Vazgeç</button><button class="btn primary" id="mpApply"><svg class="icon"><use href="#i-check"/></svg><span id="mpApplyTxt">Menüyü uygula</span></button></div></div></div>
+<div id="loginModal">
+  <div class="login-card">
+    <h2>Yönetim Girişi</h2>
+    <p>Panoyu düzenlemek için kullanıcı adı ve şifrenizi girin.</p>
+    <div class="field">
+      <label for="loginUser">Kullanıcı adı</label>
+      <input type="text" id="loginUser" autocomplete="username" />
+    </div>
+    <div class="field">
+      <label for="loginPass">Şifre</label>
+      <input type="password" id="loginPass" autocomplete="current-password" />
+    </div>
+    <button class="btn primary block" id="btnLoginSubmit"><svg class="icon"><use href="#i-key"/></svg>Giriş yap</button>
+    <div class="login-error" id="loginError"></div>
+    <div class="login-hint" id="loginHint"></div>
+    <button class="btn ghost block" id="btnLoginCancel" style="margin-top:.6rem;">Vazgeç</button>
+  </div>
+</div>
+
+<!-- ============ ADMIN PANEL ============ -->
+<div id="adminPanel">
+  <div class="admin-nav">
+    <div class="admin-brand"><svg class="icon"><use href="#i-school"/></svg><b>Pano Yönetimi</b></div>
+    <button class="nav-btn active" data-tab="genel"><svg class="icon"><use href="#i-gear"/></svg>Genel &amp; kimlik</button>
+    <button class="nav-btn" data-tab="acil"><svg class="icon"><use href="#i-alert"/></svg>Acil duyuru</button>
+    <button class="nav-btn" data-tab="medya"><svg class="icon"><use href="#i-image"/></svg>Medya galerisi</button>
+    <button class="nav-btn" data-tab="nobet"><svg class="icon"><use href="#i-user"/></svg>Nöbetçi personel</button>
+    <button class="nav-btn" data-tab="ders"><svg class="icon"><use href="#i-bell"/></svg>Ders programı</button>
+    <button class="nav-btn" data-tab="hava"><svg class="icon"><use href="#i-cloud-sun"/></svg>Hava durumu</button>
+    <button class="nav-btn" data-tab="duyuru"><svg class="icon"><use href="#i-mega"/></svg>Duyuru şeridi</button>
+    <button class="nav-btn" data-tab="yemek"><svg class="icon"><use href="#i-food"/></svg>Yemek menüsü</button>
+    <button class="nav-btn" data-tab="onur"><svg class="icon"><use href="#i-star"/></svg>Onur köşesi</button>
+    <button class="nav-btn" data-tab="modul"><svg class="icon"><use href="#i-module"/></svg>Özel modül</button>
+    <button class="nav-btn" data-tab="hesap"><svg class="icon"><use href="#i-key"/></svg>Hesap &amp; yedekleme</button>
+    <button class="nav-btn" data-tab="ag"><svg class="icon"><use href="#i-wifi"/></svg>Ağ yayını</button>
+    <div class="admin-nav-bottom">
+      <button class="btn ghost block" id="btnBackToKiosk" style="color:#d7deee; border-color:rgba(255,255,255,.18);"><svg class="icon"><use href="#i-back"/></svg>Panoyu görüntüle</button>
+      <button class="btn ghost block" id="btnLogout" style="color:#d7deee; border-color:rgba(255,255,255,.18);"><svg class="icon"><use href="#i-logout"/></svg>Çıkış yap</button>
+    </div>
+  </div>
+
+  <div class="admin-main">
+
+    <!-- GENEL -->
+    <section class="tab-panel" id="tab-genel">
+      <div class="admin-head"><div><h1>Genel &amp; kimlik</h1><p>Okul adı, logo ve panonun renk kimliğini buradan ayarlayın.</p></div></div>
+      <div class="card">
+        <h3>Okul bilgileri</h3>
+        <p class="desc">Üst bardaki isim ve alt başlık.</p>
+        <div class="grid2">
+          <div class="field"><label>Okul adı</label><input type="text" id="fSchoolName" /></div>
+          <div class="field"><label>Alt başlık</label><input type="text" id="fSchoolSub" /></div>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Logo</h3>
+        <p class="desc">Kare formatta bir görsel önerilir (PNG/JPG).</p>
+        <div class="logo-uploader">
+          <div class="logo-preview" id="logoPreview"><svg class="icon"><use href="#i-school"/></svg></div>
+          <div>
+            <input type="file" id="fLogoFile" accept="image/*" style="display:none" />
+            <button class="btn" id="btnLogoPick"><svg class="icon"><use href="#i-upload2"/></svg>Logo yükle</button>
+            <button class="btn danger" id="btnLogoClear">Kaldır</button>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Tema</h3>
+        <p class="desc">Panonun genel renk temasını (arka plan + ikincil renk) seçin. "· TV" yazanlar (Orman Doğal, Yan Şerit, Kara Tahta) TV sayfasında yerleşimi de değiştirir; bilgisayar sayfasında yalnızca renkleri uygulanır.</p>
+        <div class="theme-swatches" id="themeSwatches"></div>
+      </div>
+      <div class="card">
+        <h3>Vurgu rengi</h3>
+        <p class="desc">Saat, sayılar ve simgelerde kullanılan ana vurgu rengini okulunuzun kurumsal rengine göre seçin.</p>
+        <div class="swatches" id="swatches"></div>
+        <div class="field" style="margin-top:.9rem; max-width:12rem;"><label>Özel renk (hex)</label><input type="text" id="fAccentCustom" placeholder="#f2a93b" /></div>
+      </div>
+      <div class="tip"><svg class="icon" style="width:1rem;height:1rem;vertical-align:-2px;"><use href="#i-info"/></svg>
+        Kiosk kurulumu için: Chrome/Edge tarayıcısını <span class="kbd">--kiosk</span> parametresiyle bu dosyanın yolunu vererek açabilir, ekran koruyucu ve uyku modunu kapatarak sürekli yayın sağlayabilirsiniz.
+      </div>
+      <button class="btn primary" id="btnSaveGenel"><svg class="icon"><use href="#i-check" /></svg>Kaydet</button>
+    </section>
+
+    <!-- MEDYA -->
+    <section class="tab-panel" id="tab-medya" style="display:none">
+      <div class="admin-head"><div><h1>Medya galerisi</h1><p>Ortadaki büyük alanda geçiş efektleriyle sırayla gösterilecek görsel, video ve YouTube içerikleri.</p></div></div>
+      <div class="card">
+        <div class="dropzone" id="dropzone">
+          <svg class="icon"><use href="#i-upload2"/></svg><br/>
+          Görsel veya video seçmek için tıklayın (birden fazla dosya seçebilirsiniz)
+          <div id="upBarWrap"><div id="upBar"></div></div>
+        <input type="file" id="fMediaFiles" accept="image/*,video/*" multiple style="display:none" />
+        </div>
+        <div style="display:flex; gap:.6rem; align-items:flex-end; flex-wrap:wrap; margin-bottom:1rem; padding:.9rem; background:#f7f8fc; border:1px solid #e3e7f0; border-radius:.9rem;">
+          <div class="field" style="flex:1; min-width:16rem; margin-bottom:0;">
+            <label>YouTube linki ekle</label>
+            <input type="text" id="fYoutubeUrl" placeholder="https://www.youtube.com/watch?v=..." />
+          </div>
+          <button class="btn" id="btnAddYoutube"><svg class="icon"><use href="#i-youtube"/></svg>Ekle</button>
+        </div>
+        <div class="tip" id="youtubeTip" style="margin-bottom:1rem;">
+          <svg class="icon" style="width:1rem;height:1rem;vertical-align:-2px;"><use href="#i-info"/></svg>
+          <b>Eski TV tarayıcıları (Opera TV / Chromium 53) YouTube oynatıcısını açamaz.</b> Sunucu bilgisayarda <code>yt-dlp</code> kuruluysa video TV'ye sunucu üzerinden mp4 gibi akıtılır; <b>diske hiçbir şey kaydedilmez</b> (README bölüm 13). Kurulu değilse bağlantı yalnızca bilgisayar tarayıcısında oynar, TV onu atlar. Süre alanı, videonun ekranda kalma süresidir.
+        </div>
+        <div class="card" id="ytStatusBox" style="font-size:.85rem;line-height:1.55;margin-bottom:1rem;padding:.8rem 1rem;">
+          <b>TV YouTube akışı:</b> <span id="ytStatus">denetleniyor…</span>
+          <div style="color:#5b6478;margin-top:.2rem;">Bilgisayar ekranı YouTube'un kendi oynatıcısını kullanır; orada oynaması TV'ye akışın çalıştığını göstermez.</div>
+        </div>
+        <div class="media-grid" id="mediaGrid"></div>
+      </div>
+    </section>
+
+    <!-- NÖBET -->
+    <section class="tab-panel" id="tab-nobet" style="display:none">
+      <div class="admin-head"><div><h1>Nöbetçi personel</h1><p>Konum ve nöbetçi ad-soyad listesi. Gün seçilen satırlar yalnızca o gün panoda görünür.</p></div>
+        <div style="display:flex;gap:.5rem;flex-wrap:wrap;">
+          <input type="file" id="dutyFile" accept=".xlsx,.docx,.csv,.txt" style="display:none" />
+          <button class="btn" id="btnImportDuty"><svg class="icon"><use href="#i-plus"/></svg>Word / Excel'den yükle</button>
+          <button class="btn" id="btnAddDuty"><svg class="icon"><use href="#i-plus"/></svg>Satır ekle</button>
+        </div>
+      </div>
+      <div class="card" style="font-size:.85rem;line-height:1.5;">
+        <b>Toplu yükleme:</b> .xlsx, .docx, .csv veya .txt dosyası seçin. Okunan düzenler:
+        <b>haftalık çizelge</b> (<i>Nöbet Yeri | Pazartesi | Salı | … | Cuma</i>, hücrelerde öğretmen adları; ya da günler satırda),
+        <b>uzun liste</b> (<i>Gün | Nöbet Yeri | Öğretmen</i>) ve <b>günsüz liste</b> (<i>Nöbet Yeri | Öğretmen</i>).
+        Haftalık çizelge yüklenirse panoda <b>yalnızca bugünün</b> nöbetçileri görünür; hafta sonu pazartesi gösterilir. Örnek: <code>samples/nobet-listesi-ornek.xlsx</code>
+      </div>
+      <div class="card"><div class="row-list" id="dutyRows"></div></div>
+      <button class="btn primary" id="btnSaveDuty"><svg class="icon"><use href="#i-check"/></svg>Kaydet</button>
+    </section>
+
+    <!-- DERS -->
+    <section class="tab-panel" id="tab-ders" style="display:none">
+      <div class="admin-head"><div><h1>Ders programı ve zil</h1><p>Panoda kalan süre otomatik hesaplanır; teneffüsleri işaretleyin.</p></div>
+        <button class="btn" id="btnAddSched"><svg class="icon"><use href="#i-plus"/></svg>Satır ekle</button>
+      </div>
+      <div class="card"><div class="row-list" id="schedRows"></div></div>
+      <button class="btn primary" id="btnSaveSched"><svg class="icon"><use href="#i-check"/></svg>Kaydet</button>
+
+      <div class="card" style="margin-top:1.4rem;">
+        <h3>Sınava kalan süre (LGS vb.)</h3>
+        <p class="desc">Üst bardaki saatin yanında gün/saat olarak geri sayım gösterir. Tarihi MEB'in resmî duyurusuna göre siz belirlersiniz.</p>
+        <label style="display:flex; align-items:center; gap:.5rem; font-size:.88rem; margin-bottom:.8rem;">
+          <input type="checkbox" id="fCdEnabled" style="width:auto;" /> Geri sayımı panoda göster
+        </label>
+        <div class="grid2">
+          <div class="field"><label>Başlık</label><input type="text" id="fCdLabel" placeholder="LGS'ye Kalan Süre" /></div>
+          <div class="field"><label>Sınav tarihi</label><input type="date" id="fCdDate" /></div>
+        </div>
+        <button class="btn primary" id="btnSaveCountdown"><svg class="icon"><use href="#i-check"/></svg>Kaydet</button>
+      </div>
+    </section>
+
+    <!-- HAVA -->
+    <section class="tab-panel" id="tab-hava" style="display:none">
+      <div class="admin-head"><div><h1>Hava durumu</h1><p>Zonguldak için otomatik/çevrimiçi güncelleme veya elle giriş.</p></div></div>
+      <div class="card">
+        <h3>Otomatik güncelleme</h3>
+        <p class="desc">Açıkken pano, internet bağlantısı olduğunda hava durumunu kendiliğinden günceller. İnternet yoksa (veya resmî MGM servisine tarayıcıdan erişilemediğinde) otomatik olarak alttaki elle girilmiş değerlere döner — bu yüzden elle girdiğiniz değerleri yedek olarak tutmanız önerilir.</p>
+        <label style="display:flex; align-items:center; gap:.5rem; font-size:.88rem; margin-bottom:.6rem;">
+          <input type="checkbox" id="fWAuto" style="width:auto;" /> Zonguldak için otomatik güncelle (internet gerekir)
+        </label>
+        <div style="display:flex; align-items:center; gap:.8rem; flex-wrap:wrap;">
+          <button class="btn" id="btnWeatherNow"><svg class="icon"><use href="#i-cloud-sun"/></svg>Şimdi güncelle</button>
+          <span class="desc" id="weatherAutoStatus" style="margin:0;">-</span>
+        </div>
+        <div class="tip" style="margin-top:1rem;">
+          <svg class="icon" style="width:1rem;height:1rem;vertical-align:-2px;"><use href="#i-info"/></svg>
+          MGM'nin (mgm.gov.tr) resmî servisi, güvenlik amacıyla yalnızca kendi web sitesinden gelen istekleri kabul ediyor; bu yüzden tarayıcı üzerinden doğrudan çekilemiyor. Pano bu yüzden aynı konum (Zonguldak) için serbestçe erişilebilen Open-Meteo servisini kullanır — değerler MGM ile pratikte aynı kaynaklardan (uydu/model verisi) türetildiği için çok yakın çıkar.
+        </div>
+      </div>
+      <div class="card">
+        <h3>Elle giriş / yedek değerler</h3>
+        <p class="desc">Otomatik güncelleme kapalıyken veya internet yokken gösterilecek değerler.</p>
+        <div class="grid3">
+          <div class="field"><label>Durum</label><input type="text" id="fWCond" placeholder="Parçalı bulutlu" /></div>
+          <div class="field"><label>Sembol</label>
+            <select id="fWIcon">
+              <option value="i-sun">Güneşli</option>
+              <option value="i-cloud-sun">Parçalı bulutlu</option>
+              <option value="i-cloud">Bulutlu</option>
+              <option value="i-cloud-rain">Yağmurlu</option>
+              <option value="i-cloud-snow">Karlı</option>
+            </select>
+          </div>
+          <div class="field"><label>Sıcaklık (°C)</label><input type="number" id="fWTemp" /></div>
+          <div class="field"><label>Hissedilen (°C)</label><input type="number" id="fWFeels" /></div>
+          <div class="field"><label>En yüksek (°C)</label><input type="number" id="fWMax" /></div>
+          <div class="field"><label>En düşük (°C)</label><input type="number" id="fWMin" /></div>
+        </div>
+      </div>
+      <button class="btn primary" id="btnSaveWeather"><svg class="icon"><use href="#i-check"/></svg>Kaydet</button>
+    </section>
+
+    <!-- DUYURU -->
+    <section class="tab-panel" id="tab-duyuru" style="display:none">
+      <div class="admin-head"><div><h1>Duyuru şeridi</h1><p>Alt kısımda büyük puntolarla kayan duyuru/haber metinleri.</p></div>
+        <button class="btn" id="btnAddTicker"><svg class="icon"><use href="#i-plus"/></svg>Duyuru ekle</button>
+      </div>
+      <div class="card">
+        <h3>Akış hızı</h3>
+        <p class="desc">Metnin alt şeritte ne hızda kaydığını ayarlayın.</p>
+        <select id="fTickerSpeed" style="max-width:14rem;">
+          <option value="0.5">Çok yavaş</option>
+          <option value="0.75">Yavaş</option>
+          <option value="1">Normal</option>
+          <option value="1.4">Hızlı</option>
+          <option value="2">Çok hızlı</option>
+        </select>
+      </div>
+      <div class="card"><div class="row-list" id="tickerRows"></div></div>
+      <button class="btn primary" id="btnSaveTicker"><svg class="icon"><use href="#i-check"/></svg>Kaydet</button>
+    </section>
+
+    <!-- YEMEK -->
+    <section class="tab-panel" id="tab-yemek" style="display:none">
+      <div class="admin-head"><div><h1>Haftalık yemek menüsü</h1><p>Panoda bugünün menüsü otomatik vurgulanır.</p></div>
+        <div style="display:flex;gap:.5rem;flex-wrap:wrap;">
+          <input type="file" id="menuFile" accept=".xlsx,.docx,.csv,.txt" style="display:none" />
+          <button class="btn" id="btnImportMenu"><svg class="icon"><use href="#i-plus"/></svg>Word / Excel'den yükle</button>
+          <button class="btn" id="btnAddMenu"><svg class="icon"><use href="#i-plus"/></svg>Gün ekle</button>
+        </div>
+      </div>
+      <div class="card" style="font-size:.85rem;line-height:1.5;">
+        <b>Toplu yükleme:</b> .xlsx veya .docx dosyası seçin. Her satırda <b>tarih</b> ve/veya <b>gün adı</b> ile yemekler olmalıdır
+        (örn. <i>Tarih | Gün | Çorba | Ana yemek | Yardımcı | Tatlı</i>). Aylık liste yükleseniz bile panoda yalnızca <b>o haftanın</b> günleri görünür; hafta sonu ertesi hafta gösterilir.
+        Mevcut menü yeni listeyle değiştirilir.
+      </div>
+      <div class="card"><div class="row-list" id="menuRows"></div></div>
+      <button class="btn primary" id="btnSaveMenu"><svg class="icon"><use href="#i-check"/></svg>Kaydet</button>
+    </section>
+
+    <!-- ONUR KOSESI -->
+    <section class="tab-panel" id="tab-onur" style="display:none">
+      <div class="admin-head"><div><h1>Onur köşesi</h1><p>Ayın en temiz sınıfı ve ayın öğrencisini ilan edin. Açınca panodaki yemek menüsü bölümünün yerine geçer; kapatınca yemek menüsü geri gelir.</p></div></div>
+      <div class="card">
+        <label style="display:flex; align-items:center; gap:.5rem; font-size:.95rem; font-weight:700;">
+          <input type="checkbox" id="fHonorOn" style="width:auto;" /> Yemek menüsü yerine Onur Köşesi'ni yayınla
+        </label>
+        <div class="tip" style="margin-top:.7rem;">
+          <svg class="icon" style="width:1rem;height:1rem;vertical-align:-2px;"><use href="#i-info"/></svg>
+          Bu kutuyu işaretlemek ya da kaldırmak anında kaydedilir ve panoya birkaç saniye içinde yansır. Yemek menüsü bilgileriniz silinmez.
+        </div>
+      </div>
+      <div class="card">
+        <div class="field"><label>Bölüm başlığı</label><input type="text" id="fHonorTitle" maxlength="40" /></div>
+        <h3 style="margin:.4rem 0 .6rem;">Ayın en temiz sınıfı</h3>
+        <div class="field"><label>Alt başlık</label><input type="text" id="fHonorCleanLabel" maxlength="40" /></div>
+        <div class="field"><label>Sınıf (ör. 7/A)</label><input type="text" id="fHonorCleanName" maxlength="40" /></div>
+        <div class="field"><label>Not (isteğe bağlı)</label><input type="text" id="fHonorCleanNote" maxlength="120" /></div>
+        <h3 style="margin:1rem 0 .6rem;">Ayın öğrencisi</h3>
+        <div class="field"><label>Alt başlık</label><input type="text" id="fHonorStudentLabel" maxlength="40" /></div>
+        <div class="field"><label>Öğrencinin adı soyadı</label><input type="text" id="fHonorStudentName" maxlength="60" /></div>
+        <div class="field"><label>Sınıfı (isteğe bağlı)</label><input type="text" id="fHonorStudentClass" maxlength="30" /></div>
+        <div class="field"><label>Not (isteğe bağlı)</label><input type="text" id="fHonorStudentNote" maxlength="120" /></div>
+      </div>
+      <button class="btn primary" id="btnSaveHonor"><svg class="icon"><use href="#i-check"/></svg>Kaydet</button>
+    </section>
+
+    <!-- ACIL DUYURU -->
+    <section class="tab-panel" id="tab-acil" style="display:none">
+      <div class="admin-head"><div><h1>Acil duyuru</h1><p>Tüm ekranları kaplayan tam ekran duyuru. Deprem tatbikatı, tahliye, erken çıkış gibi durumlar için; başlık, metin, renk ve simge size ait. Çalışma saati dışında olsa bile yayınlanır.</p></div></div>
+      <div class="card" id="emgStatus" style="font-weight:700;"></div>
+      <div class="card">
+        <h3>Hazır duyurular</h3>
+        <p class="desc">Birine tıklayınca aşağıdaki forma doldurulur; düzenleyip yayınlayabilir ya da kendi duyurunuzu hazır olarak kaydedebilirsiniz.</p>
+        <div id="emgPresets"></div>
+      </div>
+      <div class="card">
+        <div class="field"><label>Başlık</label><input type="text" id="fEmgTitle" maxlength="80" placeholder="ör. DEPREM TATBİKATI" /></div>
+        <div class="field"><label>Mesaj</label><textarea id="fEmgText" rows="4" maxlength="600" placeholder="Ekranda büyük harflerle gösterilecek açıklama"></textarea></div>
+        <div class="field"><label>Renk</label><div id="emgColors"></div></div>
+        <div class="field"><label>Simge</label>
+          <select id="fEmgIcon"><option value="alert">Uyarı üçgeni</option><option value="info">Bilgi</option><option value="bell">Zil</option><option value="mega">Hoparlör</option><option value="check">Onay</option><option value="school">Okul</option></select></div>
+        <div class="field"><label>Otomatik kapanma (dakika; 0 = ben kaldırana kadar)</label><input type="number" id="fEmgMin" min="0" max="1440" value="0" /></div>
+        <div style="display:flex;gap:.6rem;flex-wrap:wrap;">
+          <button class="btn primary" id="btnEmgStart" style="background:#d62828;border-color:#d62828;color:#fff;"><svg class="icon"><use href="#i-alert"/></svg>Şimdi yayınla</button>
+          <button class="btn" id="btnEmgStop">Yayını kaldır</button>
+          <button class="btn" id="btnEmgPreview"><svg class="icon"><use href="#i-eye"/></svg>Bu ekranda önizle</button>
+          <button class="btn" id="btnEmgSave"><svg class="icon"><use href="#i-plus"/></svg>Hazır duyuru olarak kaydet</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- MODUL -->
+    <section class="tab-panel" id="tab-modul" style="display:none">
+      <div class="admin-head"><div><h1>Özel modül</h1><p>Sağ alt köşede istediğiniz serbest metni gösterin (kurallar, günün sözü, uyarılar vb.).</p></div></div>
+      <div class="card">
+        <label style="display:flex; align-items:center; gap:.5rem; font-size:.88rem; margin-bottom:1rem;">
+          <input type="checkbox" id="fModAuto" style="width:auto;" /> Önemli gün ve haftalarda (ör. 29 Ekim, Öğretmenler Günü) otomatik olarak o güne özel mesaj göster
+        </label>
+        <div class="tip" style="margin-bottom:1rem;">
+          <svg class="icon" style="width:1rem;height:1rem;vertical-align:-2px;"><use href="#i-info"/></svg>
+          Açıkken, bugün takvimde yer alan önemli bir gün/haftaysa aşağıdaki başlık/içerik yerine otomatik olarak o güne özel bir mesaj gösterilir; önemli bir gün değilse yazdığınız metin gösterilmeye devam eder.
+        </div>
+        <div class="field"><label>Başlık</label><input type="text" id="fModTitle" /></div>
+        <div class="field"><label>İçerik</label><textarea id="fModText" rows="6"></textarea></div>
+      </div>
+      <button class="btn primary" id="btnSaveModule"><svg class="icon"><use href="#i-check"/></svg>Kaydet</button>
+    </section>
+
+    <!-- HESAP -->
+    <section class="tab-panel" id="tab-hesap" style="display:none">
+      <div class="admin-head"><div><h1>Hesap &amp; yedekleme</h1><p>Giriş bilgilerinizi değiştirin veya ayarlarınızı yedekleyin.</p></div></div>
+      <div class="card">
+        <h3>Kullanıcı adı ve şifre</h3>
+        <p class="desc">Bu koruma yalnızca panoya yetkisiz yerel erişimi zorlaştırmak içindir.</p>
+        <div class="grid2">
+          <div class="field"><label>Yeni kullanıcı adı</label><input type="text" id="fNewUser" /></div>
+          <div class="field"><label>Yeni şifre</label><input type="password" id="fNewPass" /></div>
+        </div>
+        <div class="field" style="max-width:20rem;"><label>Mevcut şifre (onay için)</label><input type="password" id="fCurPass" /></div>
+        <button class="btn primary" id="btnSaveAuth"><svg class="icon"><use href="#i-key"/></svg>Bilgileri güncelle</button>
+        <div class="login-error" id="authError" style="margin-top:.6rem;"></div>
+      </div>
+      <div class="card">
+        <h3>Ayarları yedekle</h3>
+        <p class="desc">Metin/ayar verilerini dışa aktarıp yedekleyebilir veya başka bir sunucuya taşıyabilirsiniz. Görsel/video dosyaları bu yedeğe dahil değildir (bu sunucudaki data/media klasöründe saklanır); farklı bir sunucuya geçerken ayrıca kopyalanmalıdır.</p>
+        <button class="btn" id="btnExport"><svg class="icon"><use href="#i-download"/></svg>Dışa aktar (.json)</button>
+        <button class="btn" id="btnImportPick"><svg class="icon"><use href="#i-upload2"/></svg>İçe aktar</button>
+        <input type="file" id="fImportFile" accept="application/json" style="display:none" />
+      </div>
+    </section>
+
+    <!-- AĞ YAYINI -->
+    <section class="tab-panel" id="tab-ag" style="display:none">
+      <div class="admin-head"><div><h1>Ağ yayını</h1><p>Aynı ağdaki (Wi-Fi/LAN) TV veya akıllı tahtalarda panoyu açmak için kullanılacak adres(ler).</p></div></div>
+      <div class="card">
+        <h3>Bu sunucunun adresi</h3>
+        <p class="desc">Aynı ağa bağlı bir TV/akıllı tahta tarayıcısına aşağıdaki adresi yazın. Birden fazla adres listeleniyorsa (Wi-Fi + Ethernet gibi), TV'nin bağlı olduğu ağla eşleşeni deneyin.</p>
+        <div id="netAddrList" style="display:flex; flex-direction:column; gap:.6rem; margin-bottom:.8rem;"></div>
+        <button class="btn" id="btnRefreshNet"><svg class="icon"><use href="#i-wifi"/></svg>Yenile</button>
+      </div>
+      <div class="card">
+        <h3>Ekran çalışma saatleri</h3>
+        <p class="desc">Seçili gün ve saatler dışında TV ekranı siyah olur (yanma izi ve gereksiz yayın önlenir); sabah saati gelince pano kendiliğinden açılır. Acil duyuru bu saatlere bakmadan yayınlanır.</p>
+        <label style="display:flex;align-items:center;gap:.5rem;font-weight:700;margin-bottom:.8rem;"><input type="checkbox" id="fHrOn" style="width:auto;" /> Çalışma saatlerini uygula</label>
+        <div style="display:flex;gap:1rem;flex-wrap:wrap;align-items:center;margin-bottom:.8rem;">
+          <div class="field" style="margin:0;"><label>Açılış</label><input type="time" id="fHrStart" /></div>
+          <div class="field" style="margin:0;"><label>Kapanış</label><input type="time" id="fHrEnd" /></div>
+        </div>
+        <div id="hrDays" style="display:flex;gap:.9rem;flex-wrap:wrap;margin-bottom:1rem;"></div>
+        <button class="btn primary" id="btnSaveHours"><svg class="icon"><use href="#i-check"/></svg>Kaydet</button>
+      </div>
+      <div class="card">
+        <h3>Ekran durumu</h3>
+        <p class="desc">Panoyu açan ekranlar her 15 saniyede kendini bildirir. Bir TV'nin bağlantısı koptuysa burada kırmızı görünür.</p>
+        <div id="clientList"><span style="font-size:.85rem;color:#7b8398;">Yükleniyor...</span></div>
+      </div>
+      <div class="tip">
+        <svg class="icon" style="width:1rem;height:1rem;vertical-align:-2px;"><use href="#i-info"/></svg>
+        Bu adresler yalnızca sunucu bilgisayar açık ve <span class="kbd">node server.js</span> çalışırken erişilebilir. Bilgisayar kapanır/uyursa TV'lerdeki gösterim de durur — sürekli yayın için sunucu bilgisayarın ekran koruyucu/uyku modunu kapatmanız ve bu bilgisayarı açık bırakmanız gerekir.
+      </div>
+    </section>
+
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ================= VARSAYILAN VERİ ================= */
+  var ACCENT_PRESETS = ["#f2a93b","#2dd4bf","#5b8def","#e05e6b","#8b6bf2","#4fbf6b"];
+
+  /* ================= MÜREKKEP RENKLERİ (okunabilirlik) =================
+     Bölüm renkleri (ders, hava, modül…) kart tonu ve simge olarak olduğu gibi kullanılır; METİN olarak kullanılırken
+     panel zeminine karşı en az `min` karşıtlık (WCAG 4.5:1) verene kadar koyulaştırılır (koyu zeminde açılır).
+     Böylece okulun seçtiği vurgu rengi ne olursa olsun yazı okunur kalır. color-mix() yerine JS: eski Chrome'larda da çalışır. */
+  function hexRgb(h){ h = String(h || "").replace("#", ""); if(h.length === 3) h = h.replace(/(.)/g, "$1$1"); var n = parseInt(h, 16); return isNaN(n) ? null : [n >> 16 & 255, n >> 8 & 255, n & 255]; }
+  function rgbHex(c){ return "#" + c.map(function(v){ v = Math.max(0, Math.min(255, Math.round(v))); return (v < 16 ? "0" : "") + v.toString(16); }).join(""); }
+  function relLum(c){ return c.map(function(v){ v /= 255; return v <= .03928 ? v / 12.92 : Math.pow((v + .055) / 1.055, 2.4); }).reduce(function(s, v, i){ return s + v * [.2126, .7152, .0722][i]; }, 0); }
+  function contrastOf(a, b){ var x = relLum(a), y = relLum(b); return (Math.max(x, y) + .05) / (Math.min(x, y) + .05); }
+  function inkFor(hex, bgHex, min){
+    var c = hexRgb(hex), bg = hexRgb(bgHex); if(!c || !bg) return hex;
+    var to = relLum(bg) > .3 ? [10, 13, 20] : [255, 255, 255], k, m;
+    for(k = 0; k <= 1.0001; k += .04){
+      m = [0, 1, 2].map(function(i){ return c[i] + (to[i] - c[i]) * k; });
+      if(contrastOf(m, bg) >= min) return rgbHex(m);
+    }
+    return rgbHex(to);
+  }
+  /* Renkli bir zeminin üstündeki yazı: beyaz ya da koyu, hangisi daha okunursa */
+  function onColor(hex){ var c = hexRgb(hex); if(!c) return "#ffffff"; return contrastOf(c, [255, 255, 255]) >= contrastOf(c, [10, 13, 20]) ? "#ffffff" : "#0a0d14"; }
+  /* Tema dosyası çağırır: her bölüm için --ink-<bölüm> (panel üstünde yazı) ve --on-<bölüm> (bölüm renginin üstünde yazı) */
+  function setInks(root, t, panelBg, min){
+    [["duty", t.cDuty], ["sched", t.cSched], ["weather", t.cWeather], ["module", t.cModule], ["menu", t.cMenu], ["ticker", t.cTicker]].forEach(function(p){
+      root.setProperty("--ink-" + p[0], inkFor(p[1], panelBg, min));
+      root.setProperty("--on-" + p[0], onColor(p[1]));
+    });
+  }
+  var THEME_PRESETS = {
+    lacivert: {label:"Lacivert", bg0:"#070b14", bg1:"#0c1220", bg2:"#121a2c", bg3:"#1a2438", line:"rgba(255,255,255,.09)", lineStrong:"rgba(255,255,255,.16)", text0:"#f4f7fc", text1:"#aab4cc", text2:"#727f9c", accent2:"#2dd4bf",
+      cDuty:"#0f8f83", cSched:"#c97815", cWeather:"#2f5fc0", cModule:"#7a3fc9", cMenu:"#c43569", cTicker:"#d1601f"},
+    orman:    {label:"Koyu Yeşil", bg0:"#07140f", bg1:"#0c1f17", bg2:"#12291e", bg3:"#1a3a2a", line:"rgba(255,255,255,.09)", lineStrong:"rgba(255,255,255,.16)", text0:"#f2f8f4", text1:"#a9c4b4", text2:"#6f9080", accent2:"#7ddc8c",
+      cDuty:"#12897a", cSched:"#a9790f", cWeather:"#2f6fae", cModule:"#7a4bb0", cMenu:"#b4436c", cTicker:"#c97815"},
+    bordo:    {label:"Bordo", bg0:"#170708", bg1:"#210c0e", bg2:"#2c1315", bg3:"#3d1a1d", line:"rgba(255,255,255,.09)", lineStrong:"rgba(255,255,255,.16)", text0:"#faf3f3", text1:"#d1a9ab", text2:"#996e70", accent2:"#e8896f",
+      cDuty:"#12897a", cSched:"#b68a12", cWeather:"#3763b0", cModule:"#8a4bb8", cMenu:"#b0416b", cTicker:"#c9601f"},
+    mor:      {label:"Mor", bg0:"#0d0817", bg1:"#150e24", bg2:"#1e1532", bg3:"#2a1e46", line:"rgba(255,255,255,.09)", lineStrong:"rgba(255,255,255,.16)", text0:"#f6f3fc", text1:"#bdadd6", text2:"#83729f", accent2:"#b58cf0",
+      cDuty:"#0f9488", cSched:"#b08a12", cWeather:"#3763b0", cModule:"#9333c9", cMenu:"#b0416b", cTicker:"#c97815"},
+    acik:     {label:"Açık Mod", bg0:"#bcd6f0", bg1:"#e3ecf8", bg2:"#f3f7fd", bg3:"#cfe2f4", line:"rgba(20,25,40,.10)", lineStrong:"rgba(20,25,40,.18)", text0:"#1c2333", text1:"#4c5670", text2:"#7b859e", accent2:"#0f9d8f",
+      cDuty:"#0f9d8f", cSched:"#b6740f", cWeather:"#2f5fc0", cModule:"#6a3fb0", cMenu:"#b23a6d", cTicker:"#a8460c"},
+    ormandogal:{label:"Orman (Doğal) · TV", bg0:"#0e2a1e", bg1:"#143a29", bg2:"#153d2c", bg3:"#1f5a41", line:"rgba(255,255,255,.09)", lineStrong:"rgba(255,255,255,.16)", text0:"#f7f1de", text1:"#d3dcc6", text2:"#a9b99d", accent2:"#f2c14e",
+      cDuty:"#8a6a14", cSched:"#2f6b3f", cWeather:"#2b6a7a", cModule:"#6b4f9a", cMenu:"#a23b3b", cTicker:"#b45309"},
+    yanserit: {label:"Yan Şerit · TV", bg0:"#0f1a2e", bg1:"#e9edf4", bg2:"#1d2b4a", bg3:"#ffb703", line:"rgba(255,255,255,.09)", lineStrong:"rgba(255,255,255,.16)", text0:"#f4f7fc", text1:"#aeb9d4", text2:"#7c89a8", accent2:"#ffb703",
+      cDuty:"#0b8f7a", cSched:"#e8590c", cWeather:"#2f5fc0", cModule:"#ffb703", cMenu:"#c2255c", cTicker:"#ffb703"},
+    karatahta:{label:"Kara Tahta · TV", bg0:"#1c3a30", bg1:"#26493d", bg2:"#2e5648", bg3:"#7a5230", line:"rgba(255,255,255,.14)", lineStrong:"rgba(255,255,255,.28)", text0:"#ffffff", text1:"#eef3e8", text2:"#cfdcc9", accent2:"#ffd54f",
+      cDuty:"#8fe3b2", cSched:"#ffd54f", cWeather:"#9bd4ff", cModule:"#ff9fb0", cMenu:"#c0392b", cTicker:"#c0392b"}
+  };
+
+  function hexToRgba(hex, alpha){
+    hex = (hex||"").replace("#","");
+    if(hex.length===3){ hex = hex.split("").map(function(c){return c+c;}).join(""); }
+    if(hex.length!==6) return "rgba(242,169,59,"+alpha+")";
+    var r = parseInt(hex.substr(0,2),16), g = parseInt(hex.substr(2,2),16), b = parseInt(hex.substr(4,2),16);
+    return "rgba("+r+","+g+","+b+","+alpha+")";
+  }
+
+  function applyTheme(key){
+    var t = THEME_PRESETS[key] || THEME_PRESETS.lacivert;
+    var root = document.documentElement.style;
+    /* Vision/glass sürümünde bg-0..bg-3 artık panel zemini değil, ortam (arka plan) rengidir;
+       cam paneller her zaman sabit açık/buzlu kalır — okunabilirlik için metin/çizgi renklerine dokunulmaz. */
+    root.setProperty("--bg-0", t.bg0); root.setProperty("--bg-1", t.bg1);
+    root.setProperty("--bg-2", t.bg2); root.setProperty("--bg-3", t.bg3);
+    root.setProperty("--accent-2", t.accent2);
+    root.setProperty("--glow-2", hexToRgba(t.accent2, .16));
+    root.setProperty("--c-duty", t.cDuty); root.setProperty("--c-sched", t.cSched);
+    root.setProperty("--c-weather", t.cWeather); root.setProperty("--c-module", t.cModule);
+    root.setProperty("--c-menu", t.cMenu); root.setProperty("--c-ticker", t.cTicker);
+    root.setProperty("--glow-sched", hexToRgba(t.cSched, .30));
+    root.setProperty("--glow-duty", hexToRgba(t.cDuty, .26));
+    root.setProperty("--glow-sched-bg", hexToRgba(t.cSched, .20));
+    root.setProperty("--glow-weather", hexToRgba(t.cWeather, .24));
+    root.setProperty("--glow-module", hexToRgba(t.cModule, .24));
+    root.setProperty("--glow-menu", hexToRgba(t.cMenu, .24));
+    /* Cam paneller her temada açık kalır; en koyu kart tonunu (ölçülmüş) referans al */
+    setInks(root, t, "#c4c9d4", 5.2); /* renkli kart tonu zemini biraz koyulaştırır: pay bırak */
+  }
+  function defaultState(){
+    return {
+      auth: { user: "admin" },
+      brand: { name: "Okul Adınız", sub: "Dijital Bilgi Panosu", logo: "", accent: "#f2a93b", theme: "lacivert" },
+      duty: [
+        {loc:"ZEMİN-A", name:"Ad Soyad"},
+        {loc:"ZEMİN-B", name:"Ad Soyad"},
+        {loc:"1.KAT-A", name:"Ad Soyad"},
+        {loc:"1.KAT-B", name:"Ad Soyad"},
+        {loc:"ÖNBAHÇE", name:"Ad Soyad"},
+        {loc:"ARKABAHÇE", name:"Ad Soyad"},
+        {loc:"İDARECİ", name:"Ad Soyad"}
+      ],
+      schedule: [
+        {name:"1. Ders", start:"08:30", end:"09:10", brk:false},
+        {name:"Teneffüs", start:"09:10", end:"09:20", brk:true},
+        {name:"2. Ders", start:"09:20", end:"10:00", brk:false},
+        {name:"Teneffüs", start:"10:00", end:"10:10", brk:true},
+        {name:"3. Ders", start:"10:10", end:"10:50", brk:false},
+        {name:"Teneffüs", start:"10:50", end:"11:00", brk:true},
+        {name:"4. Ders", start:"11:00", end:"11:40", brk:false},
+        {name:"Öğle Arası", start:"11:40", end:"12:30", brk:true},
+        {name:"5. Ders", start:"12:30", end:"13:10", brk:false},
+        {name:"Teneffüs", start:"13:10", end:"13:20", brk:true},
+        {name:"6. Ders", start:"13:20", end:"14:00", brk:false},
+        {name:"Teneffüs", start:"14:00", end:"14:10", brk:true},
+        {name:"7. Ders", start:"14:10", end:"14:50", brk:false}
+      ],
+      weather: {cond:"Parçalı bulutlu", icon:"i-cloud-sun", temp:22, feels:21, min:15, max:24, auto:true, lastUpdated:null, source:""},
+      countdown: {enabled:false, label:"LGS'ye Kalan Süre", targetDate:""},
+      ticker: [
+        "Bu alana okulunuza ait duyuruları ekleyebilirsiniz.",
+        "Yönetim panelinden istediğiniz kadar duyuru satırı ekleyip sıralayabilirsiniz."
+      ],
+      tickerSpeed: 1,
+      module: {title:"Bilgilendirme", text:"Bu alanı istediğiniz içerikle özelleştirebilirsiniz: nöbet kuralları, güvenlik uyarıları, günün sözü vb.", autoSpecialDays:true},
+      menu: [
+        {day:"Pazartesi", items:"Menü bilgisi girilmedi"},
+        {day:"Salı", items:"Menü bilgisi girilmedi"},
+        {day:"Çarşamba", items:"Menü bilgisi girilmedi"},
+        {day:"Perşembe", items:"Menü bilgisi girilmedi"},
+        {day:"Cuma", items:"Menü bilgisi girilmedi"}
+      ],
+      hours: { enabled:true, start:"08:30", end:"16:00", days:[1,2,3,4,5] },
+      emergency: { active:false, title:"", text:"", color:"red", icon:"alert", minutes:0, nonce:0, startedAt:0, until:0 },
+      emergencyPresets: [],
+      honor: { enabled:false, title:"Onur Köşesi", cleanLabel:"Ayın En Temiz Sınıfı", cleanName:"", cleanNote:"", studentLabel:"Ayın Öğrencisi", studentName:"", studentClass:"", studentNote:"" },
+      media: []
+    };
+  }
+
+  function b64(s){ try{ return btoa(unescape(encodeURIComponent(s))); }catch(e){ return btoa(s); } }
+
+  var state = defaultState(); // sunucudan gerçek veri gelene kadar geçici varsayılan
+
+  function mergeDefaults(parsed){
+    var d2 = defaultState();
+    for(var k in d2){
+      if(!(k in parsed)) { parsed[k] = d2[k]; }
+      else if(d2[k] && typeof d2[k]==="object" && !Array.isArray(d2[k])){
+        for(var sk in d2[k]){ if(!(sk in parsed[k])) parsed[k][sk] = d2[k][sk]; }
+      }
+    }
+    return parsed;
+  }
+
+  /* Açılışta sunucu kapalıysa (ör. elektrik sonrası PC sunucudan önce açıldı) varsayılan "Okul Adınız" yerine
+     son bilinen durum gösterilir; yoklama zinciri sunucu dönünce güncel duruma geçer. */
+  function cacheState(data){ try{ localStorage.setItem("panoPcState", JSON.stringify(data)); }catch(e){} }
+  function loadState(){
+    return fetchJson("/api/state", 10000).then(function(data){
+      state = mergeDefaults(data); cacheState(data);
+      return state;
+    }).catch(function(){
+      try{ var c = localStorage.getItem("panoPcState"); if(c){ state = mergeDefaults(JSON.parse(c)); state.v = ""; } }catch(e){}
+      toast("Sunucuya bağlanılamadı — sunucunun (node server.js) çalıştığından emin olun.");
+      return state;
+    });
+  }
+  /* Kayıtlar sırayla gönderilir; yarışan iki kayıt birbirinin yanıtını ezmesin */
+  var saveChain = Promise.resolve(), saveWaiting = 0;
+  function saveState(){
+    saveWaiting++;
+    saveChain = saveChain.then(function(){ return saveStateNow(); }, function(){ return saveStateNow(); });
+    return saveChain;
+  }
+  function saveStateNow(){
+    return apiPost("/api/state", state).then(function(res){
+      saveWaiting--;
+      if(res.__status && res.__status>=400){ toast(res.__status===401 ? "Kaydedilemedi: yetki hatası. Lütfen tekrar giriş yapın." : "Kaydedilemedi: " + (res.error || ("hata " + res.__status))); return; }
+      if(saveWaiting > 0) return; /* arkadan başka kayıt geliyor; yalnızca sonuncunun yanıtı uygulanır */
+      state = mergeDefaults(res);
+      /* Sunucudan dönen yeni nesnelerle satır düzenleyicilerini yeniden bağla; aksi halde sonraki düzenlemeler eski nesnelere yazılır ve kaybolur. */
+      try{ renderDutyRows(); renderSchedRows(); renderTickerRows(); renderMenuRows(); }catch(e){}
+    }).catch(function(){ saveWaiting = Math.max(0, saveWaiting - 1); toast("Kaydedilemedi — sunucuya ulaşılamıyor."); });
+  }
+
+  function toast(msg){
+    var t = document.getElementById("toast");
+    t.textContent = msg; t.classList.add("show");
+    clearTimeout(t._h); t._h = setTimeout(function(){ t.classList.remove("show"); }, 4500);
+  }
+
+  /* ================= SUNUCU API ================= */
+  var authToken = null;
+  function apiGet(url){ return fetch(url).then(function(r){ return r.json(); }); }
+  function apiPost(url, body, isForm){
+    var opts = { method:"POST", headers:{} };
+    if(authToken) opts.headers["X-Auth-Token"] = authToken;
+    if(isForm){ opts.body = body; }
+    else { opts.headers["Content-Type"] = "application/json"; opts.body = JSON.stringify(body); }
+    return fetch(url, opts).then(function(r){ return r.json().then(function(j){ j.__status = r.status; return j; }); });
+  }
+  function apiDelete(url){
+    var opts = { method:"DELETE", headers:{} };
+    if(authToken) opts.headers["X-Auth-Token"] = authToken;
+    return fetch(url, opts).then(function(r){ return r.json(); });
+  }
+
+  /* ================= SAAT / TARİH ================= */
+  var GUNLER = ["Pazar","Pazartesi","Salı","Çarşamba","Perşembe","Cuma","Cumartesi"];
+  var AYLAR = ["Ocak","Şubat","Mart","Nisan","Mayıs","Haziran","Temmuz","Ağustos","Eylül","Ekim","Kasım","Aralık"];
+  function pad(n){ return n<10 ? "0"+n : ""+n; }
+  function tickClock(){
+    var d = new Date();
+    document.getElementById("clockTime").textContent = pad(d.getHours())+":"+pad(d.getMinutes())+":"+pad(d.getSeconds());
+    document.getElementById("clockDate").textContent = d.getDate()+" "+AYLAR[d.getMonth()]+" "+d.getFullYear()+" "+GUNLER[d.getDay()];
+  }
+
+  /* ================= SINAVA KALAN SÜRE ================= */
+  function updateCountdown(){
+    var cfg = state.countdown || {};
+    var box = document.getElementById("countdownBox");
+    if(!cfg.enabled || !cfg.targetDate){ box.classList.remove("on"); return; }
+    box.classList.add("on");
+    document.getElementById("cdLabel").textContent = cfg.label || "Sınava Kalan Süre";
+    var target = new Date(cfg.targetDate+"T00:00:00");
+    var now = new Date();
+    var diffMs = target.getTime() - now.getTime();
+    var daysEl = document.getElementById("cdDays"), unitEl = document.getElementById("cdUnit"), timeEl = document.getElementById("cdTime");
+    if(diffMs <= -86400000){
+      daysEl.textContent = ""; unitEl.textContent = ""; timeEl.textContent = "Sınav tamamlandı"; return;
+    }
+    if(diffMs <= 0){
+      daysEl.textContent = ""; unitEl.textContent = ""; timeEl.textContent = "Bugün!"; return;
+    }
+    var totalSec = Math.floor(diffMs/1000);
+    var days = Math.floor(totalSec/86400);
+    var rem = totalSec - days*86400;
+    var h = Math.floor(rem/3600), m = Math.floor((rem%3600)/60), s = rem%60;
+    daysEl.textContent = days;
+    unitEl.textContent = "gün";
+    timeEl.textContent = pad(h)+":"+pad(m)+":"+pad(s);
+  }
+
+  /* ================= RENDER: BRAND ================= */
+  function renderBrand(){
+    applyTheme(state.brand.theme || "lacivert");
+    document.documentElement.style.setProperty("--accent", state.brand.accent || "#f2a93b");
+    document.documentElement.style.setProperty("--glow-1", hexToRgba(state.brand.accent || "#f2a93b", .10));
+    var bn = document.getElementById("brandName");
+    bn.textContent = state.brand.name || "Okul Adınız";
+    bn.classList.remove("long"); if(bn.scrollWidth > bn.clientWidth + 1) bn.classList.add("long");
+    document.getElementById("brandSub").textContent = state.brand.sub || "Dijital Bilgi Panosu";
+    var logoEl = document.getElementById("brandLogo");
+    logoEl.innerHTML = state.brand.logo ? '<img src="'+escapeHtml(state.brand.logo)+'" alt="logo"/>' : '<svg class="icon"><use href="#i-school"/></svg>';
+  }
+
+  /* ================= RENDER: DUTY ================= */
+  /* Gün atanmış satırlar yalnızca o gün görünür (hafta sonu pazartesi); günü boş satırlar her gün görünür */
+  function dutyToday(list){
+    var d = new Date().getDay(), idx = d === 0 || d === 6 ? 1 : d;
+    var today = foldTr(GUNLER[idx]), weekly = false;
+    var out = (list || []).filter(function(r){ if(!r || !r.day) return true; weekly = true; return foldTr(r.day) === today; });
+    return { rows: out, weekly: weekly, day: GUNLER[idx] };
+  }
+  function foldTr(s){ return String(s || "").trim().toLocaleLowerCase("tr"); }
+  function renderDuty(){
+    var wrap = document.getElementById("dutyList");
+    wrap.innerHTML = "";
+    var vis = dutyToday(state.duty);
+    document.getElementById("dutyDay").textContent = vis.weekly ? vis.day : "";
+    vis.rows.forEach(function(row){
+      var div = document.createElement("div");
+      div.className = "duty-row";
+      div.innerHTML = '<span class="duty-tag">'+escapeHtml(row.loc)+'</span><span class="duty-name">'+escapeHtml(row.name)+'</span>';
+      wrap.appendChild(div);
+    });
+  }
+
+  /* ================= RENDER: SCHEDULE ================= */
+  function toMinutes(hhmm){ var p = hhmm.split(":"); return (+p[0])*60 + (+p[1]); }
+  function renderScheduleList(){
+    var wrap = document.getElementById("schedList");
+    wrap.innerHTML = "";
+    var nowMin = (function(){ var d=new Date(); return d.getHours()*60+d.getMinutes(); })();
+    var list = (state.schedule||[]).slice().sort(function(a,b){ return toMinutes(a.start)-toMinutes(b.start); });
+    /* Küçük öğrenciler için: günün TAMAMI her zaman canlı renkte görünür.
+       Soluklaştırma yalnızca okul günü sürerken (ilk ders başlamış, son ders bitmemişse) uygulanır —
+       ders saatleri dışında (sabah erken / akşam) tüm program tam canlı gösterilir. */
+    var dayStarted = list.length>0 && nowMin >= toMinutes(list[0].start);
+    var dayEnded = list.length>0 && nowMin >= toMinutes(list[list.length-1].end);
+    var dimPast = dayStarted && !dayEnded;
+    list.forEach(function(p){
+      var isNow = nowMin >= toMinutes(p.start) && nowMin < toMinutes(p.end);
+      var isPast = dimPast && toMinutes(p.end) <= nowMin;
+      var el = document.createElement("div");
+      el.className = "sched-item " + (p.brk ? "brk" : "cls") + (isNow ? " now" : "") + (isPast && !isNow ? " past" : "");
+      el.innerHTML =
+        '<svg class="icon"><use href="#'+(p.brk ? "i-ball" : "i-book")+'"/></svg>'+
+        '<span class="sched-item-text"><span class="sched-item-name">'+escapeHtml(p.name)+'</span><span class="sched-item-time">'+p.start+'–'+p.end+'</span></span>'+
+        (isNow ? '<span class="sched-now-badge">ŞİMDİ</span>' : '');
+      wrap.appendChild(el);
+    });
+    fitSchedule();
+  }
+  /* Ders listesi kutuya sığmıyorsa sıkı düzene geçer; yine sığmazsa "şimdi" satırı görünür kalsın diye geçmiş satırlar gizlenir */
+  function fitSchedule(){
+    var wrap = document.getElementById("schedList");
+    wrap.classList.remove("compact"); wrap.classList.remove("tiny");
+    var items = wrap.querySelectorAll(".sched-item"), i;
+    for(i = 0; i < items.length; i++) items[i].style.display = "";
+    /* Taşma, son görünür satırın kutunun dışına (alta ya da 2. sütunun sağına) düşmesiyle ölçülür;
+       çok sütunlu düzende scrollWidth/scrollHeight güvenilir değildir. */
+    /* Sınır: listenin kutusu VE kartın iç kenarı (liste kutusu kartın dışına görünmeden taşabilir; klasik temada öyle oluyordu) */
+    var panel = wrap.closest(".panel"), pr = panel ? panel.getBoundingClientRect() : null;
+    var overflows = function(){
+      var box = wrap.getBoundingClientRect(), maxB = -1, maxL = -1;
+      var bottom = pr ? Math.min(box.bottom, pr.bottom - 10) : box.bottom;
+      /* İki sütunlu akışta en alttaki satır DOM'daki son satır değildir (ilk sütun daha uzun olabilir): tüm satırların en büyüğü alınır */
+      for(var j = 0; j < items.length; j++){ if(items[j].style.display === "none") continue; var r = items[j].getBoundingClientRect(); if(r.bottom > maxB) maxB = r.bottom; if(r.left > maxL) maxL = r.left; }
+      if(maxB < 0) return false;
+      return maxB > bottom + 1 || maxL >= box.right - 1;
+    };
+    if(!overflows()) return;
+    wrap.classList.add("compact");
+    if(overflows()) wrap.classList.add("tiny");
+    for(i = 0; i < items.length && overflows(); i++){
+      if(!items[i].classList.contains("past")) break;
+      items[i].style.display = "none";
+    }
+  }
+  function tickSchedule(){
+    var list = (state.schedule||[]).slice().sort(function(a,b){ return toMinutes(a.start)-toMinutes(b.start); });
+    var now = new Date();
+    var nowMin = now.getHours()*60+now.getMinutes()+now.getSeconds()/60;
+    var label = document.getElementById("schedLabel");
+    var cd = document.getElementById("schedCountdown");
+    var fill = document.getElementById("schedBarFill");
+    var current = null, next = null;
+    for(var i=0;i<list.length;i++){
+      var s = toMinutes(list[i].start), e = toMinutes(list[i].end);
+      if(nowMin>=s && nowMin<e){ current = list[i]; break; }
+    }
+    if(!current){
+      for(var j=0;j<list.length;j++){ if(toMinutes(list[j].start) > nowMin){ next = list[j]; break; } }
+    }
+    if(current){
+      var remain = toMinutes(current.end) - nowMin;
+      var total = toMinutes(current.end) - toMinutes(current.start);
+      var progress = 1 - (remain/total);
+      fill.style.width = Math.max(0,Math.min(100,progress*100)) + "%";
+      label.textContent = (current.brk ? current.name+" bitişine" : current.name+" bitişine");
+      cd.textContent = fmtRemain(remain);
+    } else if(next){
+      var remain2 = toMinutes(next.start) - nowMin;
+      fill.style.width = "0%";
+      label.textContent = next.name + " başlangıcına";
+      cd.textContent = fmtRemain(remain2);
+    } else {
+      fill.style.width = "100%";
+      label.textContent = "Bugünkü ders programı tamamlandı";
+      cd.textContent = "--:--";
+    }
+  }
+  function fmtRemain(mins){
+    if(mins<0) mins=0;
+    var h = Math.floor(mins/60), m = Math.floor(mins%60), s = Math.floor((mins*60)%60);
+    return h>0 ? (pad(h)+":"+pad(m)+":"+pad(s)) : (pad(m)+":"+pad(s));
+  }
+
+  /* ================= RENDER: WEATHER ================= */
+  function renderWeather(){
+    var w = state.weather||{};
+    document.getElementById("weatherIcon").innerHTML = '<use href="#'+(w.icon||"i-cloud-sun")+'"/>';
+    document.getElementById("weatherHeadIcon").innerHTML = '<use href="#'+(w.icon||"i-cloud-sun")+'"/>';
+    document.getElementById("weatherTemp").textContent = (w.temp!=null?w.temp:"--")+"°";
+    document.getElementById("weatherCond").textContent = w.cond||"-";
+    document.getElementById("weatherFeels").textContent = "Hissedilen "+(w.feels!=null?w.feels:"--")+"°";
+    document.getElementById("weatherMinMax").textContent = "Y: "+(w.max!=null?w.max:"--")+"° D: "+(w.min!=null?w.min:"--")+"°";
+    var upd = document.getElementById("weatherUpdated");
+    if(w.auto && w.lastUpdated){
+      var d = new Date(w.lastUpdated);
+      upd.textContent = "Zonguldak • "+pad(d.getHours())+":"+pad(d.getMinutes())+" güncellendi";
+    } else if(w.auto){
+      upd.textContent = "Zonguldak • bağlantı bekleniyor";
+    } else {
+      upd.textContent = "";
+    }
+  }
+
+  /* ================= ÖNEMLİ GÜN VE HAFTALAR =================
+     Sabit (her yıl aynı tarihe denk gelen) resmî/mesleki gün ve haftalardan oluşan bir özet liste.
+     Bazı "hafta" etkinliklerinin tam tarihi MEB tarafından yıldan yıla küçük farklarla belirlenebilir;
+     burada yaygın/sabit kabul edilen tarihler kullanılmıştır — gerekirse aşağıdaki listeyi düzenleyebilirsiniz. */
+  var SPECIAL_SINGLE_DAYS = [
+    {m:1, d:1, title:"Yeni Yıl", msg:"Yeni yılınız kutlu olsun! Bu yıl da birlikte öğrenmeye devam ediyoruz."},
+    {m:3, d:8, title:"Dünya Kadınlar Günü", msg:"Başta kadın öğretmenlerimiz ve annelerimiz olmak üzere tüm kadınların 8 Mart Dünya Kadınlar Günü kutlu olsun."},
+    {m:3, d:12, title:"İstiklal Marşı'nın Kabulü", msg:"İstiklal Marşımızın kabulünün yıl dönümünü saygıyla anıyoruz."},
+    {m:3, d:18, title:"Çanakkale Şehitlerini Anma Günü", msg:"Çanakkale şehitlerimizi rahmet ve minnetle anıyoruz."},
+    {m:4, d:7, title:"Dünya Sağlık Günü", msg:"Sağlıklı kalmak için ellerimizi yıkamayı ve sağlıklı beslenmeyi unutmayalım."},
+    {m:4, d:23, title:"Ulusal Egemenlik ve Çocuk Bayramı", msg:"23 Nisan Ulusal Egemenlik ve Çocuk Bayramımız kutlu olsun!"},
+    {m:5, d:1, title:"Emek ve Dayanışma Günü", msg:"1 Mayıs Emek ve Dayanışma Günü kutlu olsun."},
+    {m:5, d:19, title:"Atatürk'ü Anma, Gençlik ve Spor Bayramı", msg:"19 Mayıs Atatürk'ü Anma, Gençlik ve Spor Bayramımız kutlu olsun!"},
+    {m:6, d:5, title:"Dünya Çevre Günü", msg:"Dünyamızı korumak için bugün küçük bir adım atalım."},
+    {m:8, d:30, title:"Zafer Bayramı", msg:"30 Ağustos Zafer Bayramımız kutlu olsun!"},
+    {m:10, d:24, title:"Birleşmiş Milletler Günü", msg:"Dünya barışı ve dayanışması için el ele."},
+    {m:10, d:29, title:"Cumhuriyet Bayramı", msg:"29 Ekim Cumhuriyet Bayramımız kutlu olsun!"},
+    {m:11, d:10, title:"Atatürk'ü Anma Günü", msg:"Ulu önder Atatürk'ü saygı ve özlemle anıyoruz."},
+    {m:11, d:24, title:"Öğretmenler Günü", msg:"Emeği geçen tüm öğretmenlerimizin Öğretmenler Günü kutlu olsun!"}
+  ];
+  var SPECIAL_WEEKS = [
+    {sm:3, sd:21, em:3, ed:26, title:"Orman Haftası", msg:"Bu hafta Orman Haftası — doğaya ve ağaçlara sahip çıkalım!"},
+    {sm:10, sd:29, em:11, ed:4, title:"Kızılay Haftası", msg:"Bu hafta Kızılay Haftası — paylaşmanın ve yardımlaşmanın önemini hatırlayalım."},
+    {sm:12, sd:10, em:12, ed:16, title:"İnsan Hakları ve Demokrasi Haftası", msg:"Bu hafta İnsan Hakları ve Demokrasi Haftası."}
+  ];
+  function getTodaySpecialDay(){
+    var d = new Date(), m = d.getMonth()+1, day = d.getDate();
+    for(var i=0;i<SPECIAL_SINGLE_DAYS.length;i++){
+      var s = SPECIAL_SINGLE_DAYS[i];
+      if(s.m===m && s.d===day) return s;
+    }
+    for(var j=0;j<SPECIAL_WEEKS.length;j++){
+      var w = SPECIAL_WEEKS[j];
+      var afterStart = (m>w.sm) || (m===w.sm && day>=w.sd);
+      var beforeEnd = (m<w.em) || (m===w.em && day<=w.ed);
+      if(afterStart && beforeEnd) return w;
+    }
+    return null;
+  }
+
+  /* ================= RENDER: MODULE ================= */
+  function renderModule(){
+    var special = (state.module.autoSpecialDays !== false) ? getTodaySpecialDay() : null;
+    if(special){
+      document.getElementById("moduleTitle").textContent = special.title;
+      document.getElementById("moduleText").textContent = special.msg;
+    } else {
+      document.getElementById("moduleTitle").textContent = state.module.title||"";
+      document.getElementById("moduleText").textContent = state.module.text||"";
+    }
+    /* Alt kenar solması yalnızca metin sığmadığında: kısa bir söz "kesik" görünmesin */
+    var mt = document.getElementById("moduleText"); mt.classList.toggle("more", mt.scrollHeight > mt.clientHeight + 1);
+  }
+
+  /* ================= RENDER: HAFTALIK YEMEK MENÜSÜ ================= */
+  /* Tarihli menü listesinde yalnızca içinde bulunulan haftayı göster (hafta sonu: gelecek hafta) */
+  function menuIso(d){ var m = d.getMonth() + 1, g = d.getDate(); return d.getFullYear() + "-" + (m < 10 ? "0" : "") + m + "-" + (g < 10 ? "0" : "") + g; }
+  function menuWeek(iso){ var p = iso.split("-"), d = new Date(+p[0], +p[1] - 1, +p[2]); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return menuIso(d); }
+  function menuVisible(list){
+    var dated = [], i;
+    for(i = 0; i < list.length; i++){ if(list[i] && list[i].date) dated.push(list[i]); }
+    if(!dated.length) return list;
+    var now = new Date(); if(now.getDay() === 6) now.setDate(now.getDate() + 2); else if(now.getDay() === 0) now.setDate(now.getDate() + 1);
+    var cur = menuWeek(menuIso(now)), target = null, best = null, last = null;
+    for(i = 0; i < dated.length; i++){
+      var w = menuWeek(dated[i].date);
+      if(w === cur) target = cur;
+      else if(w > cur && (best === null || w < best)) best = w;
+      if(last === null || w > last) last = w;
+    }
+    if(!target) target = best || last;
+    var out = [];
+    for(i = 0; i < dated.length; i++){ if(menuWeek(dated[i].date) === target) out.push(dated[i]); }
+    out.sort(function(a, b){ return a.date < b.date ? -1 : (a.date > b.date ? 1 : 0); });
+    return out;
+  }
+  function renderMenu(){
+    var wrap = document.getElementById("menuList");
+    wrap.innerHTML = "";
+    var hn = state.honor || {}, honorOn = hn.enabled === true;
+    document.getElementById("menuTitle").textContent = honorOn ? (hn.title || "Onur Köşesi") : "Haftalık yemek menüsü";
+    document.getElementById("menuHeadUse").setAttribute("href", honorOn ? "#i-star" : "#i-food");
+    if(honorOn){
+      var blocks = [];
+      if((hn.cleanName||"").trim()) blocks.push([hn.cleanLabel || "Ayın En Temiz Sınıfı", hn.cleanName, hn.cleanNote || ""]);
+      if((hn.studentName||"").trim()) blocks.push([hn.studentLabel || "Ayın Öğrencisi", hn.studentName, [hn.studentClass, hn.studentNote].filter(function(x){ return x && String(x).trim(); }).join(" · ")]);
+      if(!blocks.length){ wrap.innerHTML = '<div class="honor-none">Bu ay için henüz seçim yapılmadı.</div>'; return; }
+      blocks.forEach(function(b){
+        var el = document.createElement("div"); el.className = "honor-blk";
+        el.innerHTML = '<span class="honor-lbl">'+escapeHtml(b[0])+'</span><div class="honor-name">'+escapeHtml(b[1])+'</div>'+(b[2] ? '<div class="honor-sub">'+escapeHtml(b[2])+'</div>' : '');
+        wrap.appendChild(el);
+      });
+      return;
+    }
+    var todayName = GUNLER[new Date().getDay()];
+    menuVisible(state.menu||[]).forEach(function(row){
+      var isToday = row.date ? row.date === menuIso(new Date()) : (row.day && row.day.trim().toLocaleLowerCase("tr") === todayName.toLocaleLowerCase("tr"));
+      var el = document.createElement("div");
+      el.className = "menu-row" + (isToday ? " today" : "");
+      el.innerHTML = '<span class="menu-day">'+escapeHtml(row.day)+'</span><span class="menu-items">'+escapeHtml(row.items)+'</span>';
+      wrap.appendChild(el);
+    });
+  }
+
+  /* ================= RENDER: TICKER ================= */
+  /* Eskiden her yoklamada (20 sn) innerHTML ve animationDuration yeniden yazılıyor, şerit her seferinde başa sarıyordu;
+     süre de karakter sayısından tahmin edildiği için hız metne/ekrana göre değişiyordu. Artık:
+     - metin/hız/genişlik değişmedikçe DOM'a dokunulmaz,
+     - bir kopyanın piksel genişliği ölçülür, ekranı dolduracak kadar kopya konur ve tam o mesafe kadar kaydırılır (dikişsiz döngü),
+     - hız rem/sn cinsinden sabittir (1080p ve 4K'da aynı algılanır), animasyon compositor'da çalışır. */
+  var tkSig = "", tkStyle = null, tkGen = 0;
+  function renderTicker(force){
+    var items = (state.ticker||[]).filter(function(s){ return s && String(s).trim(); });
+    if(items.length===0) items = ["Duyuru eklemek için yönetim panelini kullanın."];
+    var text = items.join("     •     ");
+    var move = document.getElementById("tickerMove"), track = move.parentNode;
+    var speed = state.tickerSpeed || 1, trackW = track.clientWidth;
+    var sig = text + "|" + speed + "|" + trackW;
+    if(sig === tkSig && !force) return;
+    tkSig = sig;
+    move.style.animation = "none";
+    move.textContent = "";
+    var probe = document.createElement("span"); probe.textContent = text; move.appendChild(probe);
+    var unitW = probe.offsetWidth || 1, n = Math.max(1, Math.ceil(trackW / unitW));
+    for(var i = 1; i < n * 2; i++){ var c = document.createElement("span"); c.textContent = text; move.appendChild(c); }
+    var dist = unitW * n, rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+    var dur = Math.max(4, dist / (9 * rem * speed));
+    if(!tkStyle){ tkStyle = document.createElement("style"); document.head.appendChild(tkStyle); }
+    var name = "tk" + (++tkGen);
+    tkStyle.textContent = "@keyframes " + name + "{from{transform:translate3d(0,0,0)}to{transform:translate3d(-" + dist + "px,0,0)}}";
+    move.style.animation = name + " " + dur.toFixed(2) + "s linear infinite";
+  }
+  /* Pencere boyutu ya da yazı tipi yüklenince genişlik değişir: yalnızca o zaman yeniden ölçülür */
+  var tkResizeT = null;
+  window.addEventListener("resize", function(){ clearTimeout(tkResizeT); tkResizeT = setTimeout(function(){ safe(renderTicker); safe(fitSchedule); safe(renderBrand); }, 300); });
+  if(document.fonts && document.fonts.ready) document.fonts.ready.then(function(){ safe(function(){ renderTicker(true); }); });
+
+  /* ================= MEDYA / SLIDESHOW ================= */
+  var slideIdx = -1;
+  var activeIsA = true;
+  var slideTimer = null;
+  var slideGen = 0;
+
+  function renderMediaEmptyState(){
+    document.getElementById("mediaEmpty").style.display = (state.media||[]).length ? "none" : "flex";
+  }
+
+  function startSlideshow(){
+    clearTimeout(slideTimer);
+    renderMediaEmptyState();
+    if(!state.media || state.media.length===0){
+      /* Tüm medya silindiyse son slayt "boş" uyarısının üzerinde asılı kalmasın */
+      ["slideA","slideB"].forEach(function(id){ var el = document.getElementById(id); el.classList.remove("active"); releaseLayer(el); });
+      return;
+    }
+    slideIdx = -1;
+    advanceSlide();
+  }
+
+  function advanceSlide(){
+    if(!state.media || state.media.length===0) return;
+    slideIdx = (slideIdx+1) % state.media.length;
+    /* "Döngü" açık olan video varsa yalnızca o sürekli oynatılır */
+    for(var q=0;q<state.media.length;q++){ var lm=state.media[q]; if(lm && lm.loop && (lm.type==="video"||lm.type==="youtube")){ slideIdx=q; break; } }
+    var item = state.media[slideIdx];
+    var showId = activeIsA ? "slideA" : "slideB";
+    var hideId = activeIsA ? "slideB" : "slideA";
+    var showEl = document.getElementById(showId);
+    var hideEl = document.getElementById(hideId);
+
+    releaseLayer(showEl);
+    var mediaEl, gen = ++slideGen;
+    if(item.type === "youtube"){
+      mediaEl = document.createElement("iframe");
+      var ytOrigin = (location.protocol === "file:") ? "" : ("&origin="+encodeURIComponent(location.origin));
+      mediaEl.src = "https://www.youtube.com/embed/"+item.youtubeId+"?autoplay=1&mute=1&controls=0&modestbranding=1&rel=0&playsinline=1&loop=1&playlist="+item.youtubeId+ytOrigin;
+      mediaEl.style.border = "0"; mediaEl.allow = "autoplay; encrypted-media"; mediaEl.referrerPolicy = "strict-origin-when-cross-origin"; mediaEl.width="100%"; mediaEl.height="100%";
+    } else if(item.type === "video"){
+      mediaEl = document.createElement("video");
+      mediaEl.muted = !(item.sound && /[?&]ses=1/.test(location.search)); mediaEl.autoplay = true; mediaEl.playsInline = true; mediaEl.preload = "auto";
+      mediaEl.setAttribute("playsinline",""); mediaEl.setAttribute("webkit-playsinline","");
+      mediaEl.loop = !!item.loop;
+      mediaEl.addEventListener("error", function(){ if(gen !== slideGen) return; clearTimeout(slideTimer); slideTimer = setTimeout(advanceSlide, 3000); });
+      mediaEl.src = item.url;
+      mediaEl.addEventListener("loadeddata", function(){ try{ var pr = mediaEl.play(); if(pr && pr.catch) pr.catch(function(){ mediaEl.muted = true; try{ mediaEl.play(); }catch(e2){} }); }catch(e){} });
+    } else {
+      mediaEl = document.createElement("img");
+      mediaEl.decoding = "async"; mediaEl.className = "fit";
+      /* Sığdırma: görselin tamamı görünür; kenar boşlukları bulanık kopyayla dolar. Oran alanla uyuşuyorsa kopya kaldırılır. */
+      var bgEl = document.createElement("img"); bgEl.className = "fit-bg"; bgEl.alt = ""; bgEl.setAttribute("aria-hidden", "true"); bgEl.decoding = "async";
+      bgEl.src = item.url; showEl.appendChild(bgEl);
+      mediaEl.addEventListener("load", function(){
+        var bw = showEl.clientWidth, bh = showEl.clientHeight, iw = mediaEl.naturalWidth, ih = mediaEl.naturalHeight;
+        if(bw && bh && iw && ih && Math.abs((iw / ih) / (bw / bh) - 1) < 0.03 && bgEl.parentNode) bgEl.parentNode.removeChild(bgEl);
+      });
+      /* Bozuk/silinmiş görselde boş kare yerine kısa süre sonra sıradakine geç */
+      mediaEl.addEventListener("error", function(){ if(gen !== slideGen) return; clearTimeout(slideTimer); slideTimer = setTimeout(advanceSlide, 2500); });
+      mediaEl.src = item.url;
+    }
+    showEl.appendChild(mediaEl);
+    showEl.classList.add("active");
+    hideEl.classList.remove("active");
+    /* Geçiş (1,1 sn) bitince gizlenen katmandaki video/iframe tamamen bırakılır: çözücü, ağ akışı ve bellek serbest kalır */
+    setTimeout(function(){ if(!hideEl.classList.contains("active")) releaseLayer(hideEl); }, 1300);
+
+    var caption = document.getElementById("mediaCaption");
+    if(item.caption){ caption.textContent = item.caption; caption.classList.add("show"); }
+    else { caption.classList.remove("show"); }
+
+    activeIsA = !activeIsA;
+
+    var holdMs;
+    if(item.type === "video"){
+      holdMs = (item.duration && item.duration>0) ? item.duration*1000 : 30000;
+      mediaEl.addEventListener("ended", function(){ clearTimeout(slideTimer); advanceSlide(); });
+    } else if(item.type === "youtube"){
+      holdMs = (item.duration && item.duration>0) ? item.duration*1000 : 60000;
+    } else {
+      holdMs = (item.duration && item.duration>0) ? item.duration*1000 : 8000;
+    }
+    clearTimeout(slideTimer);
+    if(!item.loop) slideTimer = setTimeout(advanceSlide, holdMs);
+  }
+
+  /* Bir slayt katmanını boşaltır. innerHTML = "" tek başına yetmez: <video> öğesi çöp toplanana kadar çözücüyü ve
+     HTTP bağlantısını tutabilir; günlerce çalışan kioskta bu, en sık görülen bellek sızıntısı kaynağıdır. */
+  function releaseLayer(el){
+    var v = el.getElementsByTagName("video"), f = el.getElementsByTagName("iframe"), i;
+    for(i = 0; i < v.length; i++){ try{ v[i].pause(); v[i].removeAttribute("src"); v[i].load(); }catch(e){} }
+    for(i = 0; i < f.length; i++){ try{ f[i].src = "about:blank"; }catch(e){} }
+    el.textContent = "";
+  }
+  /* Video bekçisi: oynuyor görünüp 30 sn ilerlemeyen (ağ kopması, çözücü takılması) video atlanır */
+  var vwLast = -1, vwSame = 0, vwEl = null;
+  function videoWatch(){
+    var act = document.querySelector(".slide.active video");
+    if(!act || act.ended){ vwEl = null; vwSame = 0; return; }
+    if(act !== vwEl){ vwEl = act; vwLast = -1; vwSame = 0; }
+    if(act.paused){ try{ var pp = act.play(); if(pp && pp.catch) pp.catch(function(){}); }catch(e){} }
+    if(act.currentTime === vwLast) vwSame++; else { vwSame = 0; vwLast = act.currentTime; }
+    if(vwSame >= 6){ vwSame = 0; if((state.media || []).length > 1) advanceSlide(); else { try{ act.currentTime = 0; act.play(); }catch(e){} } }
+  }
+
+  /* YouTube URL'sinden video kimliğini çıkarır: watch?v=, youtu.be/, embed/, shorts/ biçimlerini destekler */
+  function extractYoutubeId(url){
+    if(!url) return null;
+    var m = /(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/.exec(url.trim());
+    return m ? m[1] : null;
+  }
+
+  /* ================= YARDIMCI ================= */
+  function escapeHtml(s){
+    return (s==null?"":String(s)).replace(/[&<>"']/g, function(c){
+      return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];
+    });
+  }
+
+  /* Hata sınırı: bir bölümdeki beklenmedik hata (bozuk veri vb.) diğer bölümlerin çizimini ve zamanlayıcıları durdurmasın */
+  function safe(fn){ try{ fn(); }catch(e){ noteError(e); } }
+  /* Bölüm imzası: verisi değişmeyen bölüm yeniden kurulmaz (her yoklamada tüm listeleri silip yeniden oluşturmak gereksiz
+     yerleşim hesabı ve titreme yaratıyordu). Ders listesinin "şimdi/geçti" vurgusu dakikada bir ayrıca yenilenir. */
+  var secSig = {};
+  function changed(key, data){ var j = JSON.stringify(data); if(secSig[key] === j) return false; secSig[key] = j; return true; }
+  function renderAll(){
+    if(changed("brand", state.brand)) safe(renderBrand);
+    if(changed("duty", state.duty)) safe(renderDuty);
+    if(changed("sched", state.schedule)) safe(renderScheduleList);
+    if(changed("wx", state.weather)) safe(renderWeather);
+    if(changed("mod", state.module)) safe(renderModule);
+    safe(renderTicker); /* kendi imzası var */
+    if(changed("menu", [state.menu, state.honor])) safe(renderMenu);
+  }
+
+  /* ================= KIOSK KONTROLLERİ ================= */
+  var controls = document.getElementById("kioskControls");
+  var hideTimer = null;
+  function showControls(){
+    controls.classList.add("show");
+    clearTimeout(hideTimer);
+    hideTimer = setTimeout(function(){ controls.classList.remove("show"); }, 3500);
+  }
+  document.addEventListener("mousemove", showControls);
+  document.addEventListener("touchstart", showControls);
+
+  function fsElement(){ return document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement || null; }
+  function enterFs(){
+    var el = document.documentElement;
+    var f = el.requestFullscreen || el.webkitRequestFullscreen || el.webkitRequestFullScreen || el.mozRequestFullScreen || el.msRequestFullscreen;
+    if(!f) return false;
+    try{ f.call(el); return true; }catch(e){ return false; }
+  }
+  function exitFs(){
+    var f = document.exitFullscreen || document.webkitExitFullscreen || document.webkitCancelFullScreen || document.mozCancelFullScreen || document.msExitFullscreen;
+    if(f){ try{ f.call(document); }catch(e){} }
+  }
+  function fsTry(){
+    if(fsElement()){ exitFs(); toast("Tam ekrandan çıkılıyor..."); return; }
+    toast("Tam ekran deneniyor...");
+    var ok = enterFs();
+    setTimeout(function(){
+      if(fsElement()) { toast("Tam ekran açıldı."); return; }
+      toast(ok ? "Tarayıcı tam ekranı kabul etmedi. TV tarayıcısının kendi menüsünden (ya da uzaktan kumandadan) tam ekranı açın."
+               : "Bu tarayıcı tam ekran komutunu desteklemiyor. TV tarayıcısının kendi menüsünden tam ekranı açın.");
+    }, 800);
+  }
+  document.getElementById("btnFullscreen").addEventListener("click", fsTry);
+  document.addEventListener("keydown", function(e){ if(e.key === "f" || e.key === "F" || e.keyCode === 70){ if(!/INPUT|TEXTAREA|SELECT/.test((e.target&&e.target.tagName)||"")) fsTry(); } });
+  document.getElementById("btnAdminOpen").addEventListener("click", openLogin);
+
+  /* ================= GİRİŞ ================= */
+  var loginModal = document.getElementById("loginModal");
+  function openLogin(){
+    document.getElementById("loginUser").value = "";
+    document.getElementById("loginPass").value = "";
+    document.getElementById("loginError").textContent = "";
+    document.getElementById("loginHint").textContent = "İlk kurulumda varsayılan bilgiler: admin / admin123 — sonradan Hesap sekmesinden değiştirebilirsiniz.";
+    loginModal.classList.add("show");
+    document.getElementById("loginUser").focus();
+  }
+  function closeLogin(){ loginModal.classList.remove("show"); }
+  document.getElementById("btnLoginCancel").addEventListener("click", closeLogin);
+  document.getElementById("btnLoginSubmit").addEventListener("click", doLogin);
+  document.getElementById("loginPass").addEventListener("keydown", function(e){ if(e.key==="Enter") doLogin(); });
+  function doLogin(){
+    var u = document.getElementById("loginUser").value.trim();
+    var p = document.getElementById("loginPass").value;
+    var btn = document.getElementById("btnLoginSubmit");
+    btn.disabled = true;
+    fetch("/api/login", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({user:u, pass:p}) })
+      .then(function(r){ return r.json().then(function(j){ return {status:r.status, body:j}; }); })
+      .then(function(res){
+        btn.disabled = false;
+        if(res.status===200 && res.body.ok){
+          authToken = res.body.token;
+          closeLogin(); openAdmin();
+        } else {
+          document.getElementById("loginError").textContent = "Kullanıcı adı veya şifre hatalı.";
+        }
+      })
+      .catch(function(){ btn.disabled = false; document.getElementById("loginError").textContent = "Sunucuya bağlanılamadı."; });
+  }
+
+  /* ================= ADMIN PANEL AÇ/KAPA ================= */
+  var adminPanel = document.getElementById("adminPanel");
+  function openAdmin(){
+    if(fsElement()) exitFs();
+    fillAdminForms();
+    adminPanel.classList.add("show");
+    renderEmgPc();
+    if(pendingEmgStop){ pendingEmgStop = false; var tb = document.querySelector('[data-tab="acil"]'); if(tb) tb.click(); }
+  }
+  function closeAdmin(){ adminPanel.classList.remove("show"); renderAll(); renderEmgPc(); }
+  document.getElementById("btnBackToKiosk").addEventListener("click", closeAdmin);
+  document.getElementById("btnLogout").addEventListener("click", function(){
+    fetch("/api/logout", { method:"POST", headers: authToken ? {"X-Auth-Token": authToken} : {} }).catch(function(){});
+    authToken = null;
+    closeAdmin();
+  });
+
+  document.querySelectorAll(".nav-btn").forEach(function(btn){
+    btn.addEventListener("click", function(){
+      document.querySelectorAll(".nav-btn").forEach(function(b){ b.classList.remove("active"); });
+      btn.classList.add("active");
+      document.querySelectorAll(".tab-panel").forEach(function(p){ p.style.display = "none"; });
+      document.getElementById("tab-"+btn.dataset.tab).style.display = "block";
+    });
+  });
+
+  document.addEventListener("keydown", function(e){
+    if(e.key === "Escape" && document.getElementById("emgPc").style.display === "flex") return; /* Esc önce acil duyuru katmanını kapatır (yönetim paneli açık kalır) */
+    if(e.key === "Escape" && adminPanel.classList.contains("show")) closeAdmin();
+    if(e.key === "Escape" && loginModal.classList.contains("show")) closeLogin();
+  });
+
+  /* ================= ADMIN: FORMLARI DOLDUR ================= */
+  function fillAdminForms(){
+    document.getElementById("fSchoolName").value = state.brand.name||"";
+    document.getElementById("fSchoolSub").value = state.brand.sub||"";
+    document.getElementById("logoPreview").innerHTML = state.brand.logo ? '<img src="'+escapeHtml(state.brand.logo)+'"/>' : '<svg class="icon"><use href="#i-school"/></svg>';
+    renderNetworkInfo();
+    buildSwatches();
+    buildThemeSwatches();
+
+    renderDutyRows(); renderSchedRows(); renderTickerRows(); renderMediaGrid(); renderMenuRows();
+
+    document.getElementById("fCdEnabled").checked = !!state.countdown.enabled;
+    document.getElementById("fCdLabel").value = state.countdown.label||"";
+    document.getElementById("fCdDate").value = state.countdown.targetDate||"";
+
+    document.getElementById("fWCond").value = state.weather.cond||"";
+    document.getElementById("fWIcon").value = state.weather.icon||"i-cloud-sun";
+    document.getElementById("fWTemp").value = state.weather.temp!=null?state.weather.temp:"";
+    document.getElementById("fWFeels").value = state.weather.feels!=null?state.weather.feels:"";
+    document.getElementById("fWMax").value = state.weather.max!=null?state.weather.max:"";
+    document.getElementById("fWMin").value = state.weather.min!=null?state.weather.min:"";
+    document.getElementById("fWAuto").checked = !!state.weather.auto;
+    updateWeatherAutoStatus();
+
+    document.getElementById("fModTitle").value = state.module.title||"";
+    document.getElementById("fModText").value = state.module.text||"";
+    document.getElementById("fModAuto").checked = state.module.autoSpecialDays !== false;
+    fillHoursForm(); renderEmgPresets(); buildEmgColors(); updateEmgStatus();
+    var hn0 = state.honor || {};
+    document.getElementById("fHonorOn").checked = hn0.enabled === true;
+    [["fHonorTitle","title"],["fHonorCleanLabel","cleanLabel"],["fHonorCleanName","cleanName"],["fHonorCleanNote","cleanNote"],["fHonorStudentLabel","studentLabel"],["fHonorStudentName","studentName"],["fHonorStudentClass","studentClass"],["fHonorStudentNote","studentNote"]].forEach(function(p){ document.getElementById(p[0]).value = hn0[p[1]] || ""; });
+    document.getElementById("fTickerSpeed").value = String(state.tickerSpeed || 1);
+
+    document.getElementById("fNewUser").value = state.auth.user||"";
+    document.getElementById("fNewPass").value = "";
+    document.getElementById("fCurPass").value = "";
+  }
+
+  function buildSwatches(){
+    var wrap = document.getElementById("swatches");
+    wrap.innerHTML = "";
+    ACCENT_PRESETS.forEach(function(c){
+      var d = document.createElement("div");
+      d.className = "swatch" + (state.brand.accent===c ? " sel":"");
+      d.style.background = c;
+      d.addEventListener("click", function(){
+        state.brand.accent = c;
+        document.getElementById("fAccentCustom").value = "";
+        buildSwatches();
+      });
+      wrap.appendChild(d);
+    });
+    document.getElementById("fAccentCustom").value = ACCENT_PRESETS.indexOf(state.brand.accent)===-1 ? state.brand.accent : "";
+  }
+
+  function buildThemeSwatches(){
+    var wrap = document.getElementById("themeSwatches");
+    wrap.innerHTML = "";
+    Object.keys(THEME_PRESETS).forEach(function(key){
+      var t = THEME_PRESETS[key];
+      var chip = document.createElement("div");
+      chip.className = "theme-chip" + (((state.brand.theme||"lacivert")===key) ? " sel" : "");
+      var dots = [t.cDuty, t.cSched, t.cWeather, t.cModule, t.cMenu].map(function(c){
+        return '<span class="theme-dot" style="background:'+c+';"></span>';
+      }).join("");
+      chip.innerHTML =
+        '<div class="theme-preview" style="background:linear-gradient(135deg,'+t.bg0+','+t.bg3+');"><div class="theme-dots">'+dots+'</div></div>'+
+        '<span>'+t.label+'</span>';
+      chip.addEventListener("click", function(){
+        state.brand.theme = key;
+        buildThemeSwatches();
+      });
+      wrap.appendChild(chip);
+    });
+  }
+
+  /* ---- Genel kaydet ---- */
+  document.getElementById("btnLogoPick").addEventListener("click", function(){ document.getElementById("fLogoFile").click(); });
+  document.getElementById("fLogoFile").addEventListener("change", function(e){
+    var f = e.target.files[0]; if(!f) return;
+    var reader = new FileReader();
+    reader.onload = function(ev){
+      state.brand.logo = ev.target.result;
+      document.getElementById("logoPreview").innerHTML = '<img src="'+escapeHtml(state.brand.logo)+'"/>';
+    };
+    reader.readAsDataURL(f);
+  });
+  document.getElementById("btnLogoClear").addEventListener("click", function(){
+    state.brand.logo = "";
+    document.getElementById("logoPreview").innerHTML = '<svg class="icon"><use href="#i-school"/></svg>';
+  });
+  document.getElementById("fAccentCustom").addEventListener("input", function(e){
+    var v = e.target.value.trim();
+    if(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(v)){ state.brand.accent = v; buildSwatches(); document.getElementById("fAccentCustom").value = v; }
+  });
+  document.getElementById("btnSaveGenel").addEventListener("click", function(){
+    state.brand.name = document.getElementById("fSchoolName").value.trim() || "Okul Adınız";
+    state.brand.sub = document.getElementById("fSchoolSub").value.trim();
+    saveState(); renderBrand(); toast("Genel ayarlar kaydedildi.");
+  });
+
+  /* ---- Nöbetçi ---- */
+  var DUTY_DAY_OPTS = ["", "Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"];
+  function renderDutyRows(){
+    var wrap = document.getElementById("dutyRows");
+    wrap.innerHTML = "";
+    state.duty.forEach(function(row,i){
+      var el = document.createElement("div");
+      el.className = "row-item";
+      el.innerHTML =
+        '<input class="mini" data-f="loc" value="'+escapeHtml(row.loc)+'" placeholder="Konum" />'+
+        '<input data-f="name" value="'+escapeHtml(row.name)+'" placeholder="Ad Soyad" />'+
+        '<select class="day-sel" data-f="day" title="Bu satır hangi gün gösterilsin?">' + DUTY_DAY_OPTS.map(function(d){ return '<option value="'+d+'"'+((row.day||"")===d?" selected":"")+'>'+(d||"Her gün")+'</option>'; }).join("") + '</select>'+
+        '<button class="iconbtn del" title="Sil"><svg class="icon"><use href="#i-trash"/></svg></button>';
+      el.querySelector('[data-f="loc"]').addEventListener("input", function(e){ row.loc = e.target.value; });
+      el.querySelector('[data-f="day"]').addEventListener("change", function(e){ row.day = e.target.value; });
+      el.querySelector('[data-f="name"]').addEventListener("input", function(e){ row.name = e.target.value; });
+      el.querySelector(".del").addEventListener("click", function(){ state.duty.splice(i,1); renderDutyRows(); });
+      wrap.appendChild(el);
+    });
+  }
+  document.getElementById("btnAddDuty").addEventListener("click", function(){
+    state.duty.push({loc:"KONUM", name:"Ad Soyad"}); renderDutyRows();
+  });
+  /* Word / Excel'den toplu nöbet listesi: sunucu ayrıştırır, önizleme onaylanınca mevcut listenin yerine geçer */
+  document.getElementById("btnImportDuty").addEventListener("click", function(){ document.getElementById("dutyFile").click(); });
+  document.getElementById("dutyFile").addEventListener("change", function(e){
+    var f = e.target.files && e.target.files[0]; e.target.value = "";
+    if(!f) return;
+    toast("Dosya okunuyor…");
+    var rd = new FileReader();
+    rd.onload = function(){
+      var h = { "Content-Type":"application/octet-stream" };
+      if(authToken) h["X-Auth-Token"] = authToken;
+      fetch("/api/duty/import?name="+encodeURIComponent(f.name), { method:"POST", headers:h, body:rd.result })
+        .then(function(r){ return r.json().then(function(j){ j.__status = r.status; return j; }); })
+        .then(function(j){
+          if(!j.ok){ toast(j.error || "Dosya okunamadı."); return; }
+          return showDutyPreview(j, f.name).then(function(okApply){
+            if(!okApply){ toast("Nöbet listesi yüklemesi iptal edildi; mevcut liste korundu."); return; }
+            state.duty = j.duty;
+            return saveState().then(function(){
+              renderDutyRows(); renderDuty();
+              toast(j.duty.length + " nöbet satırı içe aktarıldı ve kaydedildi." + (j.weekly ? " Panoda her gün yalnızca o günün nöbetçileri görünür." : "") + " Gerekirse satırları düzenleyip Kaydet'e basın.");
+            });
+          });
+        })
+        .catch(function(){ toast("Yükleme başarısız — sunucuya ulaşılamıyor."); });
+    };
+    rd.readAsArrayBuffer(f);
+  });
+  function showDutyPreview(j, fname){
+    return new Promise(function(resolve){
+      var m = document.getElementById("menuPrev"), list = document.getElementById("mpList");
+      var days = {}; j.duty.forEach(function(r){ if(r.day) days[r.day] = 1; });
+      document.getElementById("mpTitle").textContent = "Nöbet listesi önizleme";
+      document.getElementById("mpApplyTxt").textContent = "Listeyi uygula";
+      list.classList.add("duty");
+      document.getElementById("mpInfo").textContent = fname + " — " + j.duty.length + " satır bulundu" + (j.weekly ? " (" + Object.keys(days).length + " gün, haftalık çizelge)" : "") + ". Mevcut nöbet listesinin yerine geçecek; onaylıyor musunuz?";
+      list.innerHTML = "";
+      j.duty.forEach(function(r){ var row = document.createElement("div"); row.className = "mp-row"; row.innerHTML = '<b>' + escapeHtml((r.day ? r.day + " · " : "") + (r.loc || "—")) + '</b><span>' + escapeHtml(r.name) + '</span>'; list.appendChild(row); });
+      function done(v){ m.classList.remove("show"); document.getElementById("mpApply").onclick = null; document.getElementById("mpCancel").onclick = null; resolve(v); }
+      document.getElementById("mpApply").onclick = function(){ done(true); };
+      document.getElementById("mpCancel").onclick = function(){ done(false); };
+      m.classList.add("show");
+    });
+  }
+  document.getElementById("btnSaveDuty").addEventListener("click", function(){
+    saveState(); renderDuty(); toast("Nöbetçi listesi kaydedildi.");
+  });
+
+  /* ---- Ders programı ---- */
+  function renderSchedRows(){
+    var wrap = document.getElementById("schedRows");
+    wrap.innerHTML = "";
+    state.schedule.forEach(function(row,i){
+      var el = document.createElement("div");
+      el.className = "row-item";
+      el.innerHTML =
+        '<input data-f="name" value="'+escapeHtml(row.name)+'" placeholder="Ders adı" />'+
+        '<input class="mini" type="time" data-f="start" value="'+escapeHtml(row.start)+'" />'+
+        '<input class="mini" type="time" data-f="end" value="'+escapeHtml(row.end)+'" />'+
+        '<label style="display:flex; align-items:center; gap:.3rem; font-size:.78rem; color:#5b6478; white-space:nowrap;"><input type="checkbox" data-f="brk" '+(row.brk?"checked":"")+' style="width:auto;"/>Teneffüs</label>'+
+        '<button class="iconbtn del" title="Sil"><svg class="icon"><use href="#i-trash"/></svg></button>';
+      el.querySelector('[data-f="name"]').addEventListener("input", function(e){ row.name = e.target.value; });
+      el.querySelector('[data-f="start"]').addEventListener("input", function(e){ row.start = e.target.value; });
+      el.querySelector('[data-f="end"]').addEventListener("input", function(e){ row.end = e.target.value; });
+      el.querySelector('[data-f="brk"]').addEventListener("change", function(e){ row.brk = e.target.checked; });
+      el.querySelector(".del").addEventListener("click", function(){ state.schedule.splice(i,1); renderSchedRows(); });
+      wrap.appendChild(el);
+    });
+  }
+  document.getElementById("btnAddSched").addEventListener("click", function(){
+    state.schedule.push({name:"Ders", start:"08:00", end:"08:40", brk:false}); renderSchedRows();
+  });
+  document.getElementById("btnSaveSched").addEventListener("click", function(){
+    var okT = /^\d{1,2}:\d{2}$/;
+    for(var si = 0; si < state.schedule.length; si++){
+      var r0 = state.schedule[si];
+      if(!okT.test(r0.start || "") || !okT.test(r0.end || "")){ toast((si+1) + ". satırda saat boş veya geçersiz."); return; }
+      if(r0.end <= r0.start){ toast((si+1) + ". satırda bitiş saati başlangıçtan sonra olmalı."); return; }
+    }
+    saveState(); renderScheduleList(); toast("Ders programı kaydedildi.");
+  });
+
+  /* ---- Sınava kalan süre ---- */
+  document.getElementById("btnSaveCountdown").addEventListener("click", function(){
+    state.countdown.enabled = document.getElementById("fCdEnabled").checked;
+    state.countdown.label = document.getElementById("fCdLabel").value.trim() || "Sınava Kalan Süre";
+    state.countdown.targetDate = document.getElementById("fCdDate").value;
+    saveState(); updateCountdown(); toast("Geri sayım kaydedildi.");
+  });
+
+  /* ---- Hava durumu ---- */
+  document.getElementById("btnSaveWeather").addEventListener("click", function(){
+    var wasAuto = state.weather.auto;
+    state.weather.cond = document.getElementById("fWCond").value.trim();
+    state.weather.icon = document.getElementById("fWIcon").value;
+    state.weather.temp = numOrNull(document.getElementById("fWTemp").value);
+    state.weather.feels = numOrNull(document.getElementById("fWFeels").value);
+    state.weather.max = numOrNull(document.getElementById("fWMax").value);
+    state.weather.min = numOrNull(document.getElementById("fWMin").value);
+    state.weather.auto = document.getElementById("fWAuto").checked;
+    saveState(); renderWeather(); toast("Hava durumu kaydedildi.");
+    if(state.weather.auto && !wasAuto) fetchWeatherAuto(true);
+  });
+  function numOrNull(v){ return v===""||v==null ? null : Number(v); }
+
+  document.getElementById("btnWeatherNow").addEventListener("click", function(){ fetchWeatherAuto(true); });
+
+  function updateWeatherAutoStatus(){
+    var statusEl = document.getElementById("weatherAutoStatus");
+    if(!statusEl) return;
+    if(!state.weather.auto){ statusEl.textContent = "Otomatik güncelleme kapalı."; return; }
+    if(state.weather.lastUpdated){
+      var d = new Date(state.weather.lastUpdated);
+      statusEl.textContent = "Son güncelleme: "+pad(d.getHours())+":"+pad(d.getMinutes())+" ("+(state.weather.source||"Open-Meteo")+")";
+    } else {
+      statusEl.textContent = "Henüz güncellenmedi.";
+    }
+  }
+
+  /* Zonguldak için WMO hava kodu -> ikon/metin eşlemesi */
+  function wmoInfo(code){
+    var map = {
+      0:["Açık","i-sun"], 1:["Az bulutlu","i-cloud-sun"], 2:["Parçalı bulutlu","i-cloud-sun"], 3:["Bulutlu","i-cloud"],
+      45:["Sisli","i-cloud"], 48:["Kırağı sisi","i-cloud"],
+      51:["Hafif çisenti","i-cloud-rain"], 53:["Çisenti","i-cloud-rain"], 55:["Yoğun çisenti","i-cloud-rain"],
+      56:["Donan çisenti","i-cloud-rain"], 57:["Yoğun donan çisenti","i-cloud-rain"],
+      61:["Hafif yağmurlu","i-cloud-rain"], 63:["Yağmurlu","i-cloud-rain"], 65:["Kuvvetli yağmurlu","i-cloud-rain"],
+      66:["Donan yağmur","i-cloud-rain"], 67:["Kuvvetli donan yağmur","i-cloud-rain"],
+      71:["Hafif kar yağışlı","i-cloud-snow"], 73:["Kar yağışlı","i-cloud-snow"], 75:["Kuvvetli kar yağışlı","i-cloud-snow"], 77:["Kar taneli","i-cloud-snow"],
+      80:["Hafif sağanak","i-cloud-rain"], 81:["Sağanak yağışlı","i-cloud-rain"], 82:["Kuvvetli sağanak","i-cloud-rain"],
+      85:["Hafif kar sağanağı","i-cloud-snow"], 86:["Kuvvetli kar sağanağı","i-cloud-snow"],
+      95:["Gök gürültülü sağanak","i-cloud-rain"], 96:["Dolulu gök gürültülü sağanak","i-cloud-rain"], 99:["Kuvvetli dolulu fırtına","i-cloud-rain"]
+    };
+    return map[code] || ["Parçalı bulutlu","i-cloud-sun"];
+  }
+
+  /* Zonguldak koordinatları — MGM'nin resmî servisi tarayıcıdan doğrudan erişime izin vermediğinden
+     (Origin/Referer kontrolü nedeniyle CORS ile engelleniyor), aynı konum için anahtar gerektirmeyen
+     ve tarayıcıdan erişilebilen Open-Meteo servisi kullanılır. */
+  function fetchWeatherAuto(manualTrigger){
+    var statusEl = document.getElementById("weatherAutoStatus");
+    if(statusEl) statusEl.textContent = "Güncelleniyor...";
+    var url = "https://api.open-meteo.com/v1/forecast?latitude=41.4564&longitude=31.7987&current=temperature_2m,apparent_temperature,weather_code&daily=temperature_2m_max,temperature_2m_min&timezone=Europe%2FIstanbul";
+    fetchJson(url, 15000)
+    .then(function(data){
+      var info = wmoInfo(data.current.weather_code);
+      state.weather.cond = info[0];
+      state.weather.icon = info[1];
+      state.weather.temp = Math.round(data.current.temperature_2m);
+      state.weather.feels = Math.round(data.current.apparent_temperature);
+      state.weather.max = Math.round(data.daily.temperature_2m_max[0]);
+      state.weather.min = Math.round(data.daily.temperature_2m_min[0]);
+      state.weather.lastUpdated = Date.now();
+      state.weather.source = "Open-Meteo";
+      if(authToken) saveState(); /* giriş yoksa yalnızca ekranda göster (sunucu zaten kendi çeker) */
+      renderWeather(); updateWeatherAutoStatus();
+      var f1=document.getElementById("fWCond"); if(f1){ f1.value=state.weather.cond; document.getElementById("fWIcon").value=state.weather.icon;
+        document.getElementById("fWTemp").value=state.weather.temp; document.getElementById("fWFeels").value=state.weather.feels;
+        document.getElementById("fWMax").value=state.weather.max; document.getElementById("fWMin").value=state.weather.min; }
+      if(manualTrigger) toast("Hava durumu güncellendi.");
+    })
+    .catch(function(){
+      if(statusEl) statusEl.textContent = "Güncellenemedi — internet yok, elle girilen/son bilinen değerler kullanılıyor.";
+      if(manualTrigger) toast("Hava durumu güncellenemedi. İnternet bağlantısını kontrol edin.");
+    });
+  }
+
+  /* ---- Duyuru ---- */
+  function renderTickerRows(){
+    var wrap = document.getElementById("tickerRows");
+    wrap.innerHTML = "";
+    state.ticker.forEach(function(txt,i){
+      var el = document.createElement("div");
+      el.className = "row-item";
+      el.innerHTML =
+        '<input data-f="t" value="'+escapeHtml(txt)+'" placeholder="Duyuru metni" />'+
+        '<button class="iconbtn del" title="Sil"><svg class="icon"><use href="#i-trash"/></svg></button>';
+      el.querySelector('[data-f="t"]').addEventListener("input", function(e){ state.ticker[i] = e.target.value; });
+      el.querySelector(".del").addEventListener("click", function(){ state.ticker.splice(i,1); renderTickerRows(); });
+      wrap.appendChild(el);
+    });
+  }
+  document.getElementById("btnAddTicker").addEventListener("click", function(){
+    state.ticker.push("Yeni duyuru metni"); renderTickerRows();
+  });
+  document.getElementById("btnSaveTicker").addEventListener("click", function(){
+    state.tickerSpeed = Number(document.getElementById("fTickerSpeed").value) || 1;
+    saveState(); renderTicker(); toast("Duyuru şeridi kaydedildi.");
+  });
+
+  /* ---- Haftalık yemek menüsü ---- */
+  function renderMenuRows(){
+    var wrap = document.getElementById("menuRows");
+    wrap.innerHTML = "";
+    state.menu.forEach(function(row,i){
+      var el = document.createElement("div");
+      el.className = "row-item";
+      el.innerHTML =
+        '<input class="mini" data-f="day" value="'+escapeHtml(row.day)+'" placeholder="Gün" />'+
+        '<input class="mini" type="date" data-f="date" value="'+escapeHtml(row.date||"")+'" title="Tarih (isteğe bağlı)" style="max-width:9.5rem;" />'+
+        '<input data-f="items" value="'+escapeHtml(row.items)+'" placeholder="Çorba, ana yemek, yardımcı yemek, tatlı..." />'+
+        '<button class="iconbtn del" title="Sil"><svg class="icon"><use href="#i-trash"/></svg></button>';
+      el.querySelector('[data-f="day"]').addEventListener("input", function(e){ row.day = e.target.value; });
+      el.querySelector('[data-f="items"]').addEventListener("input", function(e){ row.items = e.target.value; });
+      el.querySelector('[data-f="date"]').addEventListener("input", function(e){ row.date = e.target.value; });
+      el.querySelector(".del").addEventListener("click", function(){ state.menu.splice(i,1); renderMenuRows(); });
+      wrap.appendChild(el);
+    });
+  }
+  document.getElementById("btnAddMenu").addEventListener("click", function(){
+    state.menu.push({day:"Gün", items:"Menü metni"}); renderMenuRows();
+  });
+  document.getElementById("btnImportMenu").addEventListener("click", function(){ document.getElementById("menuFile").click(); });
+  document.getElementById("menuFile").addEventListener("change", function(e){
+    var f = e.target.files && e.target.files[0]; e.target.value = "";
+    if(!f) return;
+    toast("Dosya okunuyor…");
+    var rd = new FileReader();
+    rd.onload = function(){
+      var h = { "Content-Type":"application/octet-stream" };
+      if(authToken) h["X-Auth-Token"] = authToken;
+      fetch("/api/menu/import?name="+encodeURIComponent(f.name), { method:"POST", headers:h, body:rd.result })
+        .then(function(r){ return r.json().then(function(j){ j.__status = r.status; return j; }); })
+        .then(function(j){
+          if(!j.ok){ toast(j.error || "Dosya okunamadı."); return; }
+          return showMenuPreview(j, f.name).then(function(okApply){
+            if(!okApply){ toast("Menü yüklemesi iptal edildi; mevcut menü korundu."); return; }
+            state.menu = j.menu;
+            return saveState().then(function(){
+              renderMenuRows(); renderMenu();
+              toast(j.menu.length+" gün içe aktarıldı ve kaydedildi."+(j.trimmed ? " (Tarih yoksa ilk 7 gün alınır.)" : "")+" Gerekirse satırları düzenleyip Kaydet'e basın.");
+            });
+          });
+        })
+        .catch(function(){ toast("Yükleme başarısız — sunucuya ulaşılamıyor."); });
+    };
+    rd.readAsArrayBuffer(f);
+  });
+  function showMenuPreview(j, fname){
+    return new Promise(function(resolve){
+      var m = document.getElementById("menuPrev"), list = document.getElementById("mpList");
+      document.getElementById("mpInfo").textContent = fname + " — " + j.menu.length + " gün bulundu. Mevcut menünün yerine geçecek; onaylıyor musunuz?";
+      document.getElementById("mpTitle").textContent = "Menü önizleme"; document.getElementById("mpApplyTxt").textContent = "Menüyü uygula"; list.classList.remove("duty");
+      list.innerHTML = "";
+      j.menu.forEach(function(r){ var row = document.createElement("div"); row.className = "mp-row"; row.innerHTML = '<b>' + escapeHtml((r.date ? r.date + " " : "") + (r.day || "")) + '</b><span>' + escapeHtml(r.items) + '</span>'; list.appendChild(row); });
+      function done(v){ m.classList.remove("show"); document.getElementById("mpApply").onclick = null; document.getElementById("mpCancel").onclick = null; resolve(v); }
+      document.getElementById("mpApply").onclick = function(){ done(true); };
+      document.getElementById("mpCancel").onclick = function(){ done(false); };
+      m.classList.add("show");
+    });
+  }
+  document.getElementById("btnSaveMenu").addEventListener("click", function(){
+    saveState(); renderMenu(); toast("Yemek menüsü kaydedildi.");
+  });
+
+  /* ---- Onur köşesi ---- */
+  function readHonorForm(){
+    var h = state.honor || (state.honor = {});
+    h.title = document.getElementById("fHonorTitle").value.trim() || "Onur Köşesi";
+    h.cleanLabel = document.getElementById("fHonorCleanLabel").value.trim() || "Ayın En Temiz Sınıfı";
+    h.cleanName = document.getElementById("fHonorCleanName").value.trim();
+    h.cleanNote = document.getElementById("fHonorCleanNote").value.trim();
+    h.studentLabel = document.getElementById("fHonorStudentLabel").value.trim() || "Ayın Öğrencisi";
+    h.studentName = document.getElementById("fHonorStudentName").value.trim();
+    h.studentClass = document.getElementById("fHonorStudentClass").value.trim();
+    h.studentNote = document.getElementById("fHonorStudentNote").value.trim();
+    h.enabled = document.getElementById("fHonorOn").checked;
+  }
+  document.getElementById("btnSaveHonor").addEventListener("click", function(){
+    readHonorForm(); saveState().then(function(){ renderMenu(); }); renderMenu(); toast("Onur köşesi kaydedildi.");
+  });
+  document.getElementById("fHonorOn").addEventListener("change", function(){
+    readHonorForm(); renderMenu();
+    saveState().then(function(){ renderMenu(); toast(state.honor.enabled ? "Onur Köşesi yayında (yemek menüsünün yerine)." : "Yemek menüsü yeniden yayında."); });
+  });
+
+  /* ---- Özel modül ---- */
+  document.getElementById("btnSaveModule").addEventListener("click", function(){
+    state.module.title = document.getElementById("fModTitle").value.trim();
+    state.module.text = document.getElementById("fModText").value;
+    state.module.autoSpecialDays = document.getElementById("fModAuto").checked;
+    saveState(); renderModule(); toast("Özel modül kaydedildi.");
+  });
+
+  /* ---- Hesap ---- */
+  document.getElementById("btnSaveAuth").addEventListener("click", function(){
+    var errEl = document.getElementById("authError");
+    var cur = document.getElementById("fCurPass").value;
+    var newUser = document.getElementById("fNewUser").value.trim();
+    var newPass = document.getElementById("fNewPass").value;
+    if(!newUser){ errEl.textContent = "Kullanıcı adı boş olamaz."; return; }
+    apiPost("/api/account", { currentPass: cur, newUser: newUser, newPass: newPass }).then(function(res){
+      if(!res.ok){ errEl.textContent = res.error || "Güncellenemedi."; return; }
+      state.auth.user = newUser;
+      errEl.textContent = ""; toast("Giriş bilgileri güncellendi.");
+      document.getElementById("fCurPass").value = ""; document.getElementById("fNewPass").value = "";
+    }).catch(function(){ errEl.textContent = "Sunucuya bağlanılamadı."; });
+  });
+
+  /* ---- Dışa / içe aktar ---- */
+  /* ---- Ağ yayını ---- */
+  function renderNetworkInfo(){
+    var wrap = document.getElementById("netAddrList");
+    if(!wrap) return;
+    wrap.innerHTML = '<span style="font-size:.85rem;color:#7b8398;">Yükleniyor...</span>';
+    apiGet("/api/network-info").then(function(info){
+      wrap.innerHTML = "";
+      if(!info.addresses || !info.addresses.length){
+        wrap.innerHTML = '<span style="font-size:.85rem;color:#7b8398;">Yerel ağ adresi bulunamadı. Bilgisayarın Wi-Fi/Ethernet bağlantısını kontrol edin.</span>';
+        return;
+      }
+      info.addresses.forEach(function(a){
+        var url = "http://"+a.ip+":"+info.port;
+        var row = document.createElement("div");
+        row.style.cssText = "display:flex; align-items:center; gap:.7rem; background:#f7f8fc; border:1px solid #e3e7f0; border-radius:.7rem; padding:.7rem .9rem;";
+        row.innerHTML =
+          '<div style="flex:1;">'+
+            '<div style="font-family:var(--font-display); font-size:1.1rem; font-weight:700;">'+url+'</div>'+
+            '<div style="font-size:.72rem; color:#8891a4;">'+a.iface+'</div>'+
+          '</div>'+
+          '<button class="btn" data-url="'+url+'">Kopyala</button>';
+        row.querySelector("button").addEventListener("click", function(e){
+          var u0 = e.target.getAttribute("data-url");
+          function legacyCopy(){
+            var ta = document.createElement("textarea"); ta.value = u0; ta.style.position = "fixed"; ta.style.opacity = "0"; document.body.appendChild(ta); ta.select();
+            var ok = false; try{ ok = document.execCommand("copy"); }catch(e1){} document.body.removeChild(ta);
+            toast(ok ? "Adres kopyalandı." : "Kopyalanamadı: " + u0);
+          }
+          if(navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(u0).then(function(){ toast("Adres kopyalandı."); }, legacyCopy); } else legacyCopy();
+        });
+        wrap.appendChild(row);
+      });
+    }).catch(function(){
+      wrap.innerHTML = '<span style="font-size:.85rem;color:#c23a3a;">Ağ bilgisi alınamadı.</span>';
+    });
+  }
+  document.getElementById("btnRefreshNet").addEventListener("click", renderNetworkInfo);
+
+  document.getElementById("btnExport").addEventListener("click", function(){
+    var exportObj = JSON.parse(JSON.stringify(state));
+    var blob = new Blob([JSON.stringify(exportObj,null,2)], {type:"application/json"});
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "pano-ayarlari.json";
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  });
+  document.getElementById("btnImportPick").addEventListener("click", function(){ document.getElementById("fImportFile").click(); });
+  document.getElementById("fImportFile").addEventListener("change", function(e){
+    var f = e.target.files[0]; if(!f) return;
+    var reader = new FileReader();
+    reader.onload = function(ev){
+      try{
+        var imported = JSON.parse(ev.target.result);
+        if(!imported || typeof imported !== "object" || Array.isArray(imported)) throw new Error("biçim");
+        imported.media = state.media; // medya listesi sunucuda kalır, JSON yedeğiyle değişmez
+        delete imported.auth; // hesap bilgisi yedekle değişmez
+        ["duty","schedule","ticker","menu"].forEach(function(k){ if(k in imported && !Array.isArray(imported[k])) delete imported[k]; });
+        imported.auth = state.auth;
+        state = mergeDefaults(imported);
+        saveState(); fillAdminForms(); renderAll(); toast("Ayarlar içe aktarıldı.");
+      }catch(err){ toast("Dosya okunamadı, geçerli bir yedek dosyası seçin."); }
+    };
+    reader.readAsText(f);
+  });
+
+  /* ---- Medya galerisi ---- */
+  var dropzone = document.getElementById("dropzone");
+  dropzone.addEventListener("click", function(){ document.getElementById("fMediaFiles").click(); });
+  document.getElementById("fMediaFiles").addEventListener("change", function(e){
+    handleFiles(e.target.files); e.target.value = "";
+  });
+  dropzone.addEventListener("dragover", function(e){ e.preventDefault(); dropzone.style.borderColor = "#f2a93b"; });
+  dropzone.addEventListener("dragleave", function(){ dropzone.style.borderColor = ""; });
+  dropzone.addEventListener("drop", function(e){
+    e.preventDefault(); dropzone.style.borderColor = "";
+    handleFiles(e.dataTransfer.files);
+  });
+  function handleFiles(fileList){
+    var files = Array.prototype.slice.call(fileList).filter(function(f){
+      return f.type.indexOf("video")===0 || f.type.indexOf("image")===0;
+    });
+    if(!files.length) return;
+    toast("Hazırlanıyor...");
+    var out = [], pending = files.length;
+    files.forEach(function(f, i){
+      shrinkImage(f, function(nf){
+        out[i] = nf;
+        if(--pending > 0) return;
+        uploadWithProgress(out, function(res){
+          if(!res){ toast("Yükleme başarısız — sunucuya ulaşılamadı."); return; }
+          if(res.__status===401){ toast("Yükleme başarısız: yetki hatası, lütfen tekrar giriş yapın."); return; }
+          if(res.__status>=400){ toast("Yükleme başarısız: " + (res.error || ("hata " + res.__status))); return; }
+          state.media = res.media;
+          renderMediaGrid(); startSlideshow();
+          toast(res.rejected && res.rejected.length ? "Medya eklendi; desteklenmeyen dosyalar atlandı: " + res.rejected.join(", ") : "Medya eklendi.");
+        });
+      });
+    });
+  }
+  document.getElementById("btnAddYoutube").addEventListener("click", function(){
+    var input = document.getElementById("fYoutubeUrl");
+    var vid = extractYoutubeId(input.value);
+    if(!vid){ toast("Geçerli bir YouTube linki girin."); return; }
+    apiPost("/api/media/link", { type:"youtube", youtubeId: vid, name:"YouTube video", duration:0 }).then(function(res){
+      if(res.__status && res.__status>=400){ toast("Eklenemedi: yetki hatası, lütfen tekrar giriş yapın."); return; }
+      state.media = res.media;
+      renderMediaGrid(); startSlideshow(); input.value = "";
+      apiGet("/api/yt/status").then(function(st){
+        toast(st.ytdlp ? "YouTube videosu eklendi. TV'de sunucu üzerinden oynatılır (diske kaydedilmez)." : "Eklendi, ancak TV'de OYNAMAZ: sunucuda yt-dlp kurulu değil (README bölüm 13).");
+      }).catch(function(){});
+    }).catch(function(){ toast("Eklenemedi — sunucuya ulaşılamadı."); });
+  });
+  function renderMediaGrid(){
+    var wrap = document.getElementById("mediaGrid");
+    wrap.innerHTML = "";
+    state.media.forEach(function(item,i){
+      var card = document.createElement("div");
+      card.className = "media-card";
+      var thumbHtml;
+      if(item.type==="youtube"){
+        thumbHtml = '<img src="https://img.youtube.com/vi/'+escapeHtml(item.youtubeId)+'/hqdefault.jpg" style="width:100%;height:100%;object-fit:cover;"/>'+
+          '<svg class="icon" style="position:absolute;right:.3rem;bottom:.3rem;width:1.2rem;height:1.2rem;color:#fff;filter:drop-shadow(0 1px 2px rgba(0,0,0,.6));"><use href="#i-youtube"/></svg>';
+      } else if(item.type==="video"){
+        thumbHtml = '<video src="'+escapeHtml(item.url)+'" muted></video>';
+      } else {
+        thumbHtml = '<img src="'+escapeHtml(item.url)+'" style="width:100%;height:100%;object-fit:cover;"/>';
+      }
+      card.innerHTML =
+        '<div class="thumb" style="position:relative;">'+thumbHtml+'</div>'+
+        '<div class="mc-body">'+
+          '<div class="mc-name" title="'+escapeHtml(item.name)+'">'+escapeHtml(item.name)+'</div>'+
+          ((item.type==="video" || item.type==="youtube") ? '<button class="btn" data-a="snd" style="width:100%;margin:.2rem 0 .3rem;padding:.35rem .4rem;font-size:.78rem;">'+(item.soundAuto ? "🔔 Ses: teneffüste açık, derste kapalı" : (item.sound ? "🔊 Ses açık" : "🔇 Ses kapalı"))+'</button>' : '')+
+          ((item.type==="video" || item.type==="youtube") ? '<button class="btn" data-a="loop" style="width:100%;margin:0 0 .3rem;padding:.35rem .4rem;font-size:.78rem;'+(item.loop ? 'background:#f2a93b;color:#1b1300;' : '')+'">'+(item.loop ? "🔁 Döngü açık (sürekli oynar)" : "🔁 Döngü kapalı")+'</button>' : '')+
+          '<div class="mc-row">'+
+            ((item.type!=="video" && item.type!=="youtube") ? '<input type="number" min="2" data-f="dur" value="'+item.duration+'" title="Gösterim süresi (sn)"/><span style="font-size:.7rem;color:#8891a4;">sn</span>' : '<span class="mc-spacer" style="font-size:.7rem;color:#8891a4;">video</span>')+
+            '<button class="iconbtn" data-a="up" title="Yukarı taşı"><svg class="icon"><use href="#i-up"/></svg></button>'+
+            '<button class="iconbtn" data-a="down" title="Aşağı taşı"><svg class="icon"><use href="#i-down"/></svg></button>'+
+            '<button class="iconbtn del" data-a="del" title="Sil"><svg class="icon"><use href="#i-trash"/></svg></button>'+
+          '</div>'+
+        '</div>';
+      /* Kayıttan sonra state sunucu yanıtıyla yeni nesnelere dönüşür; düğmeler eski nesneyi tutmasın diye her tıklamada kimlikle güncel kayıt bulunur */
+      var mid = item.id;
+      function cur(){ for(var k = 0; k < state.media.length; k++){ if(state.media[k].id === mid) return state.media[k]; } return null; }
+      var sndBtn = card.querySelector('[data-a="snd"]');
+      if(sndBtn) sndBtn.addEventListener("click", function(){
+        var item = cur(); if(!item) return;
+        /* Ses: kapalı → açık → otomatik (teneffüste açık, derste kapalı) → kapalı */
+        if(item.soundAuto){ item.soundAuto = false; item.sound = false; }
+        else if(item.sound){ item.sound = false; item.soundAuto = true; }
+        else { item.sound = true; item.soundAuto = false; }
+        saveState(); renderMediaGrid();
+        toast(item.soundAuto ? "Otomatik ses: teneffüste açılır, ders saatinde kapanır (yalnızca TV'de)." : (item.sound ? "Ses açıldı (yalnızca TV'de çalar, bu bilgisayarda sessiz kalır)." : "Ses kapatıldı."));
+      });
+      var loopBtn = card.querySelector('[data-a="loop"]');
+      if(loopBtn) loopBtn.addEventListener("click", function(){
+        var item = cur(); if(!item) return;
+        var on = !item.loop;
+        state.media.forEach(function(m){ m.loop = false; });
+        item.loop = on; saveState(); renderMediaGrid();
+        toast(on ? "Döngü açıldı: bu video panoda sürekli oynatılacak, diğer medyalar bekletilir." : "Döngü kapatıldı: slayt akışı devam ediyor.");
+      });
+      var durInput = card.querySelector('[data-f="dur"]');
+      if(durInput) durInput.addEventListener("change", function(e){ var it = cur(); if(!it) return; it.duration = Number(e.target.value)||8; saveState(); });
+      card.querySelector('[data-a="up"]').addEventListener("click", function(){
+        var i = state.media.indexOf(cur());
+        if(i>0){ var tmp=state.media[i-1]; state.media[i-1]=state.media[i]; state.media[i]=tmp; saveState(); renderMediaGrid(); }
+      });
+      card.querySelector('[data-a="down"]').addEventListener("click", function(){
+        var i = state.media.indexOf(cur());
+        if(i>=0 && i<state.media.length-1){ var tmp=state.media[i+1]; state.media[i+1]=state.media[i]; state.media[i]=tmp; saveState(); renderMediaGrid(); }
+      });
+      card.querySelector('[data-a="del"]').addEventListener("click", function(){
+        apiDelete("/api/media/"+encodeURIComponent(item.id)).then(function(res){
+          if(!res.ok){ toast("Silinemedi: yetki hatası."); return; }
+          state.media = res.media;
+          renderMediaGrid(); startSlideshow();
+        }).catch(function(){ toast("Silinemedi — sunucuya ulaşılamadı."); });
+      });
+      wrap.appendChild(card);
+    });
+  }
+
+
+  /* ================= ACİL DUYURU ================= */
+  var EMG_COL = { red:["#e0242c","#8a0d13"], orange:["#f08a14","#9a4d00"], blue:["#2f6fe0","#143a85"], green:["#1fa35a","#0d5c31"], yellow:["#f2c014","#8a6a00"] };
+  var EMG_NAMES = { red:"Kırmızı", orange:"Turuncu", blue:"Mavi", green:"Yeşil", yellow:"Sarı" };
+  var emgColor = "red";
+  function emgActive(em){ return !!em && em.active === true && (!em.until || Date.now() < em.until); }
+  var emgDismissed = 0, emgPreviewing = false, pendingEmgStop = false;
+  function hideEmgPc(){ document.getElementById("emgPc").style.display = "none"; emgPreviewing = false; }
+  function showEmgPc(em){
+    var el = document.getElementById("emgPc"), c = EMG_COL[em.color] || EMG_COL.red, len = String(em.text||"").length;
+    el.style.setProperty("--e1", c[0]); el.style.setProperty("--e2", c[1]); el.className = em.color || "red";
+    document.getElementById("emgPcUse").setAttribute("href", "#i-" + (em.icon || "alert"));
+    document.getElementById("emgPcTitle").textContent = em.title || "";
+    var tx = document.getElementById("emgPcText"); tx.textContent = em.text || ""; tx.style.fontSize = (len <= 60 ? 2.6 : (len <= 140 ? 2.2 : (len <= 260 ? 1.8 : 1.5))) + "rem";
+    var d = em.startedAt ? new Date(em.startedAt) : new Date();
+    document.getElementById("emgPcTime").textContent = em.startedAt ? "Duyuru saati " + pad(d.getHours()) + ":" + pad(d.getMinutes()) : "";
+    document.getElementById("emgPcHint").textContent = emgPreviewing ? "Önizleme — kapatmak için herhangi bir yere tıklayın ya da Esc'ye basın" : "";
+    document.getElementById("emgPcStop").style.display = emgPreviewing ? "none" : "inline-flex";
+    el.style.display = "flex";
+  }
+  function renderEmgPc(){
+    var em = state.emergency || {};
+    if(emgPreviewing) return;
+    if(!emgActive(em) || adminPanel.classList.contains("show") || emgDismissed === em.nonce){ hideEmgPc(); return; }
+    showEmgPc(em);
+  }
+  /* Çıkış yolları: önizlemede tıklama/Esc; yayındayken Esc ya da "Bu ekranda gizle" (yalnızca bu bilgisayar); kalıcı kaldırma için yönetici düğmesi */
+  document.getElementById("emgPc").addEventListener("click", function(){ if(emgPreviewing || !emgActive(state.emergency)) hideEmgPc(); });
+  function dismissEmgPc(){ if(emgPreviewing){ hideEmgPc(); return; } emgDismissed = (state.emergency || {}).nonce; hideEmgPc(); }
+  document.getElementById("emgPcHide").addEventListener("click", function(e){ e.stopPropagation(); dismissEmgPc(); });
+  document.addEventListener("keydown", function(e){ if((e.key === "Escape" || e.keyCode === 27) && document.getElementById("emgPc").style.display !== "none") dismissEmgPc(); });
+  document.getElementById("emgPcStop").addEventListener("click", function(e){
+    e.stopPropagation();
+    if(authToken){ if(confirm("Acil duyuru tüm ekranlardan kaldırılsın mı?")) emgCall({ action:"stop" }).then(function(r){ if(r){ toast("Acil duyuru kaldırıldı."); renderEmgPc(); } }); }
+    else { pendingEmgStop = true; openLogin(); }
+  });
+  function buildEmgColors(){
+    var w = document.getElementById("emgColors"); w.innerHTML = "";
+    Object.keys(EMG_COL).forEach(function(k){
+      var b = document.createElement("span"); b.className = "emg-chip" + (emgColor === k ? " sel" : ""); b.title = EMG_NAMES[k]; b.style.background = EMG_COL[k][0];
+      b.addEventListener("click", function(){ emgColor = k; buildEmgColors(); }); w.appendChild(b);
+    });
+  }
+  function emgForm(){
+    return { title: document.getElementById("fEmgTitle").value.trim(), text: document.getElementById("fEmgText").value.trim(), color: emgColor,
+             icon: document.getElementById("fEmgIcon").value, minutes: Math.max(0, Math.min(1440, Number(document.getElementById("fEmgMin").value) || 0)) };
+  }
+  function fillEmgForm(p){
+    document.getElementById("fEmgTitle").value = p.title || ""; document.getElementById("fEmgText").value = p.text || "";
+    emgColor = EMG_COL[p.color] ? p.color : "red"; document.getElementById("fEmgIcon").value = p.icon || "alert"; document.getElementById("fEmgMin").value = p.minutes || 0; buildEmgColors();
+  }
+  function renderEmgPresets(){
+    var w = document.getElementById("emgPresets"); w.innerHTML = "";
+    (state.emergencyPresets || []).forEach(function(p, i){
+      var s = document.createElement("span"); s.className = "emg-preset";
+      var b = document.createElement("button"); b.className = "btn"; b.textContent = p.name; b.style.borderLeft = "6px solid " + (EMG_COL[p.color] || EMG_COL.red)[0];
+      b.addEventListener("click", function(){ fillEmgForm(p); });
+      var x = document.createElement("button"); x.className = "x"; x.textContent = "×"; x.title = "Hazır duyuruyu sil";
+      x.addEventListener("click", function(){ if(!confirm("\"" + p.name + "\" hazır duyurusu silinsin mi?")) return; state.emergencyPresets.splice(i, 1); saveState().then(renderEmgPresets); renderEmgPresets(); });
+      s.appendChild(b); s.appendChild(x); w.appendChild(s);
+    });
+    if(!(state.emergencyPresets || []).length) w.innerHTML = '<span style="font-size:.85rem;color:#7b8398;">Henüz hazır duyuru yok.</span>';
+  }
+  function updateEmgStatus(){
+    var em = state.emergency || {}, box = document.getElementById("emgStatus");
+    if(emgActive(em)){
+      var left = em.until ? Math.max(1, Math.ceil((em.until - Date.now()) / 60000)) : 0;
+      box.style.background = "#fde8e8"; box.style.color = "#8a0d13";
+      box.textContent = "● YAYINDA: " + (em.title || em.text) + (left ? " — yaklaşık " + left + " dk sonra kendiliğinden kalkacak" : " — siz kaldırana kadar yayında");
+    } else { box.style.background = ""; box.style.color = ""; box.textContent = "Şu anda yayında acil duyuru yok."; }
+  }
+  function refreshEmergency(){
+    return apiGet("/api/state").then(function(d){ if(d && d.emergency){ state.emergency = d.emergency; } updateEmgStatus(); }).catch(function(){});
+  }
+  function emgCall(body){
+    return apiPost("/api/emergency", body).then(function(res){
+      if(res.__status === 401){ toast("Yetki hatası, lütfen tekrar giriş yapın."); return null; }
+      if(!res.ok){ toast(res.error || "İşlem yapılamadı."); return null; }
+      state.emergency = res.emergency; updateEmgStatus(); return res;
+    }).catch(function(){ toast("Sunucuya ulaşılamadı."); return null; });
+  }
+  document.getElementById("btnEmgStart").addEventListener("click", function(){
+    var f = emgForm(); if(!f.title && !f.text){ toast("Başlık veya mesaj girin."); return; }
+    if(!confirm("Bu duyuru TÜM ekranlarda tam ekran yayınlanacak. Onaylıyor musunuz?")) return;
+    f.action = "start"; emgCall(f).then(function(r){ if(r) toast("Acil duyuru yayında (ekranlara birkaç saniye içinde yansır)."); });
+  });
+  document.getElementById("btnEmgStop").addEventListener("click", function(){ emgCall({ action:"stop" }).then(function(r){ if(r) toast("Acil duyuru kaldırıldı."); }); });
+  document.getElementById("btnEmgPreview").addEventListener("click", function(){
+    var f = emgForm(); if(!f.title && !f.text){ toast("Önizlemek için başlık veya mesaj girin."); return; }
+    f.startedAt = Date.now(); emgPreviewing = true; showEmgPc(f);
+    setTimeout(function(){ if(emgPreviewing) hideEmgPc(); }, 8000);
+  });
+  document.getElementById("btnEmgSave").addEventListener("click", function(){
+    var f = emgForm(); if(!f.title && !f.text){ toast("Kaydetmek için başlık veya mesaj girin."); return; }
+    var name = prompt("Hazır duyuru adı:", f.title.slice(0, 30)); if(!name) return; name = name.trim().slice(0, 40); if(!name) return;
+    f.name = name; var list = state.emergencyPresets || (state.emergencyPresets = []), ix = -1;
+    list.forEach(function(p, i){ if(p.name === name) ix = i; }); if(ix >= 0) list[ix] = f; else list.push(f);
+    renderEmgPresets(); saveState().then(function(){ renderEmgPresets(); toast("Hazır duyuru kaydedildi."); });
+  });
+
+  /* ================= ÇALIŞMA SAATLERİ + EKRAN DURUMU ================= */
+  var DAY_NAMES = [["1","Pzt"],["2","Sal"],["3","Çar"],["4","Per"],["5","Cum"],["6","Cmt"],["0","Paz"]];
+  function fillHoursForm(){
+    var h = state.hours || {}, w = document.getElementById("hrDays"); w.innerHTML = "";
+    document.getElementById("fHrOn").checked = h.enabled !== false;
+    document.getElementById("fHrStart").value = h.start || "08:30"; document.getElementById("fHrEnd").value = h.end || "16:00";
+    var days = h.days || [1,2,3,4,5];
+    DAY_NAMES.forEach(function(d){
+      var l = document.createElement("label"); l.style.cssText = "display:flex;align-items:center;gap:.3rem;font-size:.9rem;";
+      l.innerHTML = '<input type="checkbox" class="hrDay" value="' + d[0] + '" style="width:auto;"' + (days.indexOf(Number(d[0])) >= 0 ? " checked" : "") + '/>' + d[1]; w.appendChild(l);
+    });
+  }
+  document.getElementById("btnSaveHours").addEventListener("click", function(){
+    var s = document.getElementById("fHrStart").value, e = document.getElementById("fHrEnd").value;
+    if(!s || !e || e <= s){ toast("Kapanış saati açılıştan sonra olmalı."); return; }
+    var days = []; [].forEach.call(document.querySelectorAll(".hrDay"), function(c){ if(c.checked) days.push(Number(c.value)); });
+    state.hours = { enabled: document.getElementById("fHrOn").checked, start: s, end: e, days: days };
+    saveState().then(function(){ toast("Çalışma saatleri kaydedildi."); });
+  });
+  function ago(ms){ var s = Math.round(ms / 1000); if(s < 60) return s + " sn"; if(s < 3600) return Math.round(s / 60) + " dk"; if(s < 86400) return Math.round(s / 3600) + " saat"; return Math.round(s / 86400) + " gün"; }
+  function loadClients(){
+    var h = {}; if(authToken) h["X-Auth-Token"] = authToken;
+    fetch("/api/clients", { headers: h }).then(function(r){ return r.json(); }).then(function(j){
+      var w = document.getElementById("clientList"); if(!j.ok){ return; }
+      if(!j.clients.length){ w.innerHTML = '<span style="font-size:.85rem;color:#7b8398;">Henüz bağlanan ekran yok. TV\'de adresi açın.</span>'; return; }
+      w.innerHTML = "";
+      j.clients.forEach(function(c){
+        var age = j.now - c.at, on = age < 45000, color, label;
+        if(on && c.mode === "sleep"){ color = "#6b7a99"; label = "Uykuda (çalışma saati dışı)"; }
+        else if(on){ color = "#1faa59"; label = "Çevrimiçi"; }
+        else { color = "#d62828"; label = "Bağlantı yok — son görülme " + ago(age) + " önce"; }
+        var row = document.createElement("div"); row.className = "cl-row";
+        row.innerHTML = '<span class="cl-dot" style="background:' + color + '"></span><b>' + (c.kind === "tv" ? "TV" : "Bilgisayar") + '</b><span style="color:#5b6478">' + escapeHtml(c.ip) + '</span><span style="margin-left:auto;font-weight:700;color:' + color + '">' + escapeHtml(label) + '</span>' + (c.errs > 0 && on ? '<span style="color:#b36a00;font-size:.78rem;">(' + c.errs + ' hata)</span>' : "");
+        w.appendChild(row);
+      });
+    }).catch(function(){});
+  }
+  setInterval(function(){ if(adminPanel.classList.contains("show") && document.getElementById("tab-ag").style.display !== "none") loadClients(); }, 10000);
+  /* TV YouTube akışı durumu (Medya sekmesi): yt-dlp / ffmpeg / çerez ve son denemenin sonucu, sunucunun gördüğü haliyle */
+  function loadYtStatus(){
+    var el = document.getElementById("ytStatus");
+    fetchJson("/api/yt/status", 8000).then(function(j){
+      var parts = [];
+      parts.push(j.ytdlp ? "✔ yt-dlp bulundu" : "✘ yt-dlp bulunamadı — yt-dlp.exe dosyasını server.js ile aynı klasöre koyun; TV YouTube öğelerini bu yüzden atlıyor");
+      if(j.ytdlp) parts.push(j.ffmpeg ? "ffmpeg var (720p; TV oynatamazsa kendiliğinden 360p'ye geçer)" : "ffmpeg yok (360p)");
+      if(j.ytdlp) parts.push(j.cookies ? "cookies.txt var" : "cookies.txt yok");
+      var L = j.last;
+      if(L){
+        var d = new Date(L.at), t = pad(d.getHours()) + ":" + pad(d.getMinutes());
+        parts.push((L.ok ? "✔ son deneme " + t + ": başarılı — " : "✘ son deneme " + t + " başarısız: ") + L.msg);
+      } else if(j.ytdlp) parts.push("henüz TV'den YouTube isteği gelmedi (TV açık ve listede YouTube öğesi var mı?)");
+      el.textContent = parts.join(" · ");
+      document.getElementById("ytStatusBox").style.borderLeft = "4px solid " + (!j.ytdlp || (L && !L.ok) ? "#c23a3a" : (L ? "#1f9d55" : "#d98c1f"));
+    }).catch(function(){ el.textContent = "sunucuya ulaşılamadı"; });
+  }
+  setInterval(function(){ if(adminPanel.classList.contains("show") && document.getElementById("tab-medya").style.display !== "none") loadYtStatus(); }, 10000);
+  document.querySelector('.nav-btn[data-tab="medya"]').addEventListener("click", function(){ setTimeout(loadYtStatus, 50); });
+  document.querySelector('[data-tab="ag"]').addEventListener("click", loadClients);
+  document.querySelector('[data-tab="acil"]').addEventListener("click", function(){ renderEmgPresets(); buildEmgColors(); refreshEmergency(); });
+
+  /* ================= MEDYA YÜKLEME: küçültme + ilerleme ================= */
+  function shrinkImage(file, cb){
+    if(!/^image\/(jpeg|png|webp)$/.test(file.type) || file.size < 400 * 1024){ cb(file); return; }
+    var img = new Image(), url = URL.createObjectURL(file);
+    img.onload = function(){
+      URL.revokeObjectURL(url);
+      var w = img.naturalWidth, h = img.naturalHeight, m = Math.max(w, h);
+      if(m <= 1920){ cb(file); return; }
+      var k = 1920 / m, cv = document.createElement("canvas"); cv.width = Math.round(w * k); cv.height = Math.round(h * k);
+      try{
+        cv.getContext("2d").drawImage(img, 0, 0, cv.width, cv.height);
+        var type = file.type === "image/png" ? "image/png" : "image/jpeg";
+        cv.toBlob(function(b){
+          if(!b || b.size >= file.size){ cb(file); return; }
+          var ext = type === "image/png" ? ".png" : ".jpg", nm = file.name.replace(/\.[^.]+$/, "") + ext;
+          try{ cb(new File([b], nm, { type: type })); }catch(e){ cb(file); }
+        }, type, 0.88);
+      }catch(e2){ cb(file); }
+    };
+    img.onerror = function(){ URL.revokeObjectURL(url); cb(file); };
+    img.src = url;
+  }
+  function uploadWithProgress(files, done){
+    var fd = new FormData(), x = new XMLHttpRequest(), wrap = document.getElementById("upBarWrap"), bar = document.getElementById("upBar");
+    files.forEach(function(f){ fd.append("file", f, f.name); });
+    wrap.style.display = "block"; bar.style.width = "0";
+    x.open("POST", "/api/media"); if(authToken) x.setRequestHeader("X-Auth-Token", authToken);
+    x.upload.onprogress = function(e){ if(e.lengthComputable){ var p = Math.round(e.loaded / e.total * 100); bar.style.width = p + "%"; toast("Yükleniyor… %" + p); } };
+    x.onload = function(){ wrap.style.display = "none"; var j = null; try{ j = JSON.parse(x.responseText); }catch(e){} if(!j) j = {}; j.__status = x.status; done(j); };
+    x.onerror = function(){ wrap.style.display = "none"; done(null); };
+    x.send(fd);
+  }
+
+  /* ================= CANLI SENKRONİZASYON (diğer ekranlar / yönetim) ================= */
+  function mediaSignature(list){ return (list||[]).map(function(m){ return m.id+":"+m.duration+":"+(m.loop?1:0); }).join(","); } /* ses ayarı imzada yok: ses aç/kapa videoyu yeniden başlatmasın */
+  var lastMediaSig = "", pcId = "pc";
+  try{ pcId = localStorage.getItem("panoPcId") || ""; if(!pcId){ pcId = "pc" + Math.random().toString(36).slice(2, 9); localStorage.setItem("panoPcId", pcId); } }catch(e){ pcId = "pc"; }
+  /* Zaman aşımlı JSON isteği: fetch'in kendi zaman aşımı yoktur; sunucu yanıt vermeden asılı kalırsa istek sonsuza dek
+     bekler. Eskiden setInterval(20 sn) bu asılı isteklerin üst üste birikmesine (bağlantı/bellek tükenmesi) yol açabiliyordu. */
+  function fetchJson(url, ms){
+    var ctl = window.AbortController ? new AbortController() : null;
+    var t = setTimeout(function(){ if(ctl) ctl.abort(); }, ms || 10000);
+    return fetch(url, { cache: "no-store", signal: ctl ? ctl.signal : undefined })
+      .then(function(r){ clearTimeout(t); if(!r.ok) throw new Error("HTTP " + r.status); return r.json(); },
+            function(e){ clearTimeout(t); throw e; });
+  }
+  /* Tek zincirli yoklama: bir istek bitmeden sonraki başlamaz. Başarıda 20 sn; ardışık hatada 20→40→80→120 sn'ye kadar
+     yavaşlar (kapalı sunucuyu boğmaz), sunucu dönünce kendiliğinden normale döner. Durum değişmediyse sunucu {same:1} döner. */
+  var pollT = null, pollFails = 0, stateV = "", lastOkAt = Date.now();
+  function schedulePoll(){
+    clearTimeout(pollT);
+    pollT = setTimeout(pollState, pollFails ? Math.min(120000, 20000 * Math.pow(2, Math.min(pollFails, 3))) : 20000);
+  }
+  function pollState(){
+    if(adminPanel.classList.contains("show")){ stateV = ""; schedulePoll(); return; } // yönetim panelinde düzenlenirken üzerine yazma
+    fetchJson("/api/state?c=pc&id=" + pcId + "&m=on" + (stateV ? "&v=" + stateV : ""), 10000).then(function(data){
+      pollFails = 0; lastOkAt = Date.now();
+      if(data && data.same === 1) return;
+      stateV = data.v || "";
+      state = mergeDefaults(data); cacheState(data);
+      var sig = mediaSignature(state.media);
+      var mediaChanged = sig !== lastMediaSig;
+      lastMediaSig = sig;
+      renderAll(); safe(renderEmgPc);
+      if(mediaChanged) safe(startSlideshow);
+    }).catch(function(){ pollFails++; }).then(schedulePoll, schedulePoll);
+  }
+
+  /* ================= KIOSK KARARLILIĞI (PC sayfası) =================
+     - Yakalanmamış hata/promise reddi sayılır; 1 dk'da 8+ hata olursa sayfa kendini yeniler (en fazla 3 dk'da bir).
+     - Yenileme yalnızca sunucu son 2 dk içinde yanıt verdiyse yapılır: çevrimdışıyken yenilenip tarayıcının
+       hata sayfasında takılı kalmaz. Yönetim paneli açıkken asla yenilenmez (düzenleme kaybolmasın).
+     - Her gece 03:30'da (sunucu erişilebilirse) önlem amaçlı yenilenir: tarayıcı içi parçalanma/sızıntıları sıfırlar. */
+  var errTimes = [];
+  function canReload(){ return Date.now() - lastOkAt < 120000 && !adminPanel.classList.contains("show"); }
+  function noteError(e){
+    try{ if(window.console) console.warn("[pano]", e); }catch(x){}
+    var now = Date.now(); errTimes.push(now);
+    while(errTimes.length && now - errTimes[0] > 60000) errTimes.shift();
+    if(errTimes.length >= 8 && canReload()){
+      var last = 0; try{ last = +localStorage.getItem("panoPcErrReload") || 0; }catch(x){}
+      if(now - last > 180000){ try{ localStorage.setItem("panoPcErrReload", String(now)); }catch(y){} location.reload(); }
+    }
+  }
+  window.addEventListener("error", function(ev){ noteError(ev && (ev.error || ev.message)); });
+  window.addEventListener("unhandledrejection", function(ev){ noteError(ev && ev.reason); });
+
+  /* ================= BAŞLAT ================= */
+  loadState().then(function(){
+    lastMediaSig = mediaSignature(state.media); renderEmgPc();
+    renderAll();
+    startSlideshow();
+    stateV = state.v || "";
+    /* Saniye döngüsü saniye sınırına hizalı tek zincir (iki ayrı setInterval yerine); saat atlamaz/çift göstermez.
+       Sonraki tur en başta planlanır: içerideki bir hata döngüyü durduramaz. Uzun saat sıçraması = bilgisayar uyudu. */
+    var lastTick = Date.now(), lastMin = -1;
+    (function secondLoop(){
+      setTimeout(secondLoop, 1000 - (Date.now() % 1000) + 10);
+      var now = Date.now(), d = new Date(now);
+      if(now - lastTick > 20000 || lastTick - now > 20000){ clearTimeout(pollT); pollState(); if(now - lastTick > 600000 && canReload()){ location.reload(); return; } }
+      lastTick = now;
+      safe(tickClock); safe(updateCountdown); safe(tickSchedule);
+      if(d.getMinutes() !== lastMin){
+        lastMin = d.getMinutes();
+        /* Dakikalık: "şimdi" vurgusu, bugünün menü satırı ve özel gün modülü tarih değişince güncellensin */
+        safe(renderScheduleList); safe(renderMenu); safe(renderModule); safe(renderDuty);
+        if(d.getHours() === 3 && d.getMinutes() === 30 && canReload()) location.reload();
+      }
+    })();
+    setInterval(function(){ safe(videoWatch); }, 5000);
+    showControls();
+    if(state.weather.auto) fetchWeatherAuto();
+    setInterval(function(){ if(state.weather.auto) fetchWeatherAuto(); }, 30*60*1000);
+    schedulePoll();
+  });
+
+})();
+</script>
+</body>
+</html>

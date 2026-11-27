@@ -1,0 +1,8 @@
+# Okulun kendi verisi ve gizli dosyalar asla depoya girmez
+sunucu-*/data/*
+!sunucu-*/data/media/.gitkeep
+sunucu-*/cookies.txt
+sunucu-*/yt-dlp*
+sunucu-*/ffmpeg*
+node_modules/
+*.zip
