@@ -328,32 +328,83 @@ function resolveYoutubeUrl(vid0, low, cb) {
   }
   run(ytVariant, ytYtdlpMode);
 }
-function pipeUpstream(url, req, res, redirects, onFail) {
+/* YouTube video sunucusundan TV'ye aktarım — PARÇALI.
+   TV "bytes=93565-" gibi sonu açık aralıklar ister. Bu isteği YouTube'a aynen iletmek, YouTube'un büyük/sonu açık aralıkları
+   kasıtlı yavaşlatmasına takılıyordu: veri damla damla geliyor, TV'deki video donup kalıyordu. Artık TV'ye tek ve kesintisiz bir
+   yanıt verilir, ama veri YouTube'dan arka arkada 8 MB'lık KAPALI aralıklarla çekilir (yt-dlp'nin kendi indirme yöntemi).
+   Bir parça yarıda koparsa kalınan bayttan en fazla 2 kez yeniden denenir. Diske hiçbir şey yazılmaz. */
+var YT_CHUNK = 8 * 1024 * 1024;
+var YT_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36";
+/* Tek bir aralık isteği (yönlendirme ve okul ağı sertifika geri dönüşüyle); cb(err, yanıt, sonUrl) */
+function upstreamGet(url, range, redirects, cb) {
   var mod = url.indexOf("https:") === 0 ? require("https") : require("http");
-  var headers = { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36" };
-  if (req.headers.range) headers.Range = req.headers.range;
+  var headers = { "User-Agent": YT_UA }; if (range) headers.Range = range;
+  var answered = false;
   var up = mod.get(url, { headers: headers, rejectUnauthorized: !ytInsecure, ca: caForNode }, function (r) {
-    if (r.statusCode >= 300 && r.statusCode < 400 && r.headers.location && redirects < 4) { r.resume(); return pipeUpstream(r.headers.location, req, res, redirects + 1, onFail); }
-    if (r.statusCode >= 400) { r.resume(); return onFail(r.statusCode); }
-    var h = { "Content-Type": "video/mp4", "Accept-Ranges": "bytes", "Cache-Control": "no-store", "Access-Control-Allow-Origin": "*" };
-    if (r.headers["content-length"]) h["Content-Length"] = r.headers["content-length"];
-    if (r.headers["content-range"]) h["Content-Range"] = r.headers["content-range"];
-    console.log("[YouTube] aktarım başladı: HTTP " + r.statusCode + " " + (r.headers["content-type"] || "") + " " + (r.headers["content-length"] || "?") + " bayt, Range=" + (req.headers.range || "yok"));
-    res.writeHead(r.statusCode, h);
-    res.on("close", function () { try { up.destroy(); } catch (e) {} });
-    if (req.method === "HEAD") { res.end(); try { up.destroy(); } catch (e) {} return; }
-    r.pipe(res);
+    if (r.statusCode >= 300 && r.statusCode < 400 && r.headers.location && redirects < 4) { r.resume(); answered = true; return upstreamGet(r.headers.location, range, redirects + 1, cb); }
+    answered = true; cb(null, r, url, up);
   });
   up.on("error", function (e) {
+    if (answered) return; /* yanıt geldikten sonraki kopuş yanıt akışında ('aborted'/'error') ele alınır */
     if (!ytInsecure && /SELF_SIGNED|UNABLE_TO_VERIFY|UNABLE_TO_GET_ISSUER|CERT_/i.test(String(e && e.code))) {
       console.log("[YouTube] Sertifika zinciri doğrulanamadı (okul ağı SSL incelemesi); doğrulama atlanarak yeniden deneniyor.");
-      ytInsecure = true; return pipeUpstream(url, req, res, redirects, onFail);
+      ytInsecure = true; return upstreamGet(url, range, redirects, cb);
     }
-    console.log("[YouTube] bağlantı hatası: " + (e && (e.code || e.message)));
-    if (res.headersSent) { try { res.destroy(); } catch (e2) {} return; } /* akış ortasında koptu: TV bağlantıyı kapatıp yeniden denesin */
-    onFail(0);
+    cb(e);
   });
-  up.setTimeout(20000, function () { up.destroy(); });
+  up.setTimeout(20000, function () { up.destroy(new Error("zaman aşımı (20 sn veri yok)")); });
+  return up;
+}
+function pipeUpstream(url, req, res, redirects, onFail) {
+  var rm = /^bytes=(\d+)-(\d*)$/.exec(String(req.headers.range || ""));
+  var start = rm ? +rm[1] : 0, wantEnd = rm && rm[2] !== "" ? +rm[2] : -1;
+  var pos = start, end = -1, total = -1, cur = null, closed = false, retries = 0, srcUrl = url;
+  res.on("close", function () { closed = true; if (cur) { try { cur.destroy(); } catch (e) {} } });
+  function chunkRange() { var last = pos + YT_CHUNK - 1; if (end >= 0 && last > end) last = end; return "bytes=" + pos + "-" + last; }
+  function fail(why) {
+    if (closed) return;
+    if (res.headersSent) {
+      if (retries < 2) { retries++; console.log("[YouTube] aktarım kesildi (" + why + "), " + pos + ". bayttan yeniden deneniyor"); return next(); }
+      console.log("[YouTube] aktarım kesildi: " + why); try { res.destroy(); } catch (e) {} return;
+    }
+    console.log("[YouTube] bağlantı hatası: " + why); onFail(0);
+  }
+  function next() {
+    if (closed) return;
+    cur = upstreamGet(srcUrl, chunkRange(), redirects, function (err, r, finalUrl) {
+      if (closed) { if (r) r.resume(); return; }
+      if (err) return fail(err.code || err.message);
+      var settled = false; /* bir parçanın sonu tek kez işlenir: 'end', 'error' ve 'aborted' birlikte gelebilir */
+      var once = function (fn) { return function (x) { if (settled) return; settled = true; fn(x); }; };
+      if (r.statusCode === 416 && !res.headersSent) { r.resume(); res.writeHead(416, { "Content-Range": r.headers["content-range"] || "bytes */*" }); return res.end(); } /* dosya dışı aralık: TV'ye olduğu gibi */
+      if (r.statusCode >= 400) { r.resume(); return res.headersSent ? fail("HTTP " + r.statusCode) : onFail(r.statusCode); }
+      srcUrl = finalUrl; /* yönlendirme sonrası adres: sonraki parçalar doğrudan oraya */
+      if (!res.headersSent) {
+        var cr = /\/(\d+)\s*$/.exec(String(r.headers["content-range"] || ""));
+        if (r.statusCode !== 206 || !cr) { /* kaynak aralık desteklemiyor: eski davranış, olduğu gibi aktar */
+          var h0 = { "Content-Type": "video/mp4", "Accept-Ranges": "bytes", "Cache-Control": "no-store", "Access-Control-Allow-Origin": "*" };
+          if (r.headers["content-length"]) h0["Content-Length"] = r.headers["content-length"];
+          res.writeHead(r.statusCode, h0); if (req.method === "HEAD") { r.resume(); return res.end(); } return r.pipe(res);
+        }
+        total = +cr[1]; end = wantEnd >= 0 ? Math.min(wantEnd, total - 1) : total - 1;
+        if (start > end) { r.resume(); res.writeHead(416, { "Content-Range": "bytes */" + total }); return res.end(); }
+        var h = { "Content-Type": "video/mp4", "Accept-Ranges": "bytes", "Cache-Control": "no-store", "Access-Control-Allow-Origin": "*", "Content-Length": end - start + 1 };
+        if (rm) h["Content-Range"] = "bytes " + start + "-" + end + "/" + total;
+        if (pos === 0 && !rm) console.log("[YouTube] aktarım başladı: " + Math.round(total / 1048576 * 10) / 10 + " MB, " + (YT_CHUNK / 1048576) + " MB'lık parçalarla");
+        res.writeHead(rm ? 206 : 200, h);
+        if (req.method === "HEAD") { r.resume(); return res.end(); }
+      }
+      r.on("data", function (c) {
+        if (pos + c.length > end + 1) c = c.slice(0, end + 1 - pos); /* fazla gelen veri gönderilmez */
+        pos += c.length; retries = 0;
+        if (c.length && res.write(c) === false) { r.pause(); res.once("drain", function () { r.resume(); }); } /* TV yavaşsa beklenir; bellek şişmez */
+      });
+      r.on("end", once(function () { if (closed) return; if (pos > end) return res.end(); next(); }));
+      r.on("error", once(function (e) { fail(e.code || e.message); }));
+      r.on("aborted", once(function () { fail("kaynak bağlantıyı kesti"); }));
+    });
+  }
+  next();
 }
 /* Yüksek kalite: ffmpeg.exe varsa ayrı video+ses akışları diske yazmadan, yeniden kodlamadan (-c copy) birleştirilip TV'ye aktarılır */
 var ytSrc = {};

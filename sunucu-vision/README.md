@@ -150,6 +150,8 @@ YouTube artık 360p'nin üstünde hazır (video+ses birleşik) mp4 vermiyor; yal
 ### TV'de YouTube oynamıyorsa: önce durumu okuyun
 Yönetim paneli → **Medya** sekmesindeki **TV YouTube akışı** kutusu sunucunun gördüğünü yazar: yt-dlp bulundu mu, ffmpeg/cookies.txt var mı ve TV'nin son isteği başarılı mı (başarısızsa YouTube'un verdiği hata). Bilgisayar ekranı YouTube'un kendi oynatıcısını kullandığından orada oynaması TV'ye akışın çalıştığını göstermez. yt-dlp yoksa TV de medya alanında bunu yazar. ffmpeg ile gönderilen 720p akışı TV oynatamazsa TV kendiliğinden uyumlu 360p mp4'e geçer. YouTube öğesinin **süre** ayarı TV'de de uygulanır.
 
+**TV'de YouTube videosu birkaç saniye sonra donup kalıyorsa (Kasım 2026'da düzeltildi):** TV videoyu "buradan sonuna kadar" biçiminde parça parça ister; YouTube bu tür büyük istekleri kasıtlı yavaşlattığı için veri yetişmiyor, görüntü donuyordu. Sunucu artık veriyi YouTube'dan 8 MB'lık küçük parçalar halinde çekip TV'ye kesintisiz aktarır (yt-dlp'nin kendi indirme yöntemi); bir parça koparsa kaldığı yerden devam eder. Diske yine hiçbir şey yazılmaz. Günlükte artık her parça için değil, akış başında tek satır görünür: `[YouTube] aktarım başladı: 35.7 MB, 8 MB'lık parçalarla`.
+
 ## Son denetim sonrası değişiklikler (güvenlik ve dayanıklılık)
 
 - **Parola**: artık `scrypt` ile özetlenerek saklanır; eski kayıtlar ilk girişte otomatik yükseltilir. Oturum jetonları 12 saat geçerlidir, çıkışta iptal edilir. 8 hatalı denemeden sonra o IP 5 dakika engellenir.
