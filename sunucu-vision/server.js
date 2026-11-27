@@ -657,7 +657,7 @@ var server = http.createServer(function (req, res) {
     return readBody(req, function (buf) {
       try {
         var r = require("./menu-import.js").importDuty(buf, dname);
-        sendJson(res, 200, { ok: true, duty: r.duty, weekly: r.weekly });
+        sendJson(res, 200, { ok: true, duty: r.duty, weekly: r.weekly, dated: !!r.dated, from: r.from || "", to: r.to || "", dayCount: r.dayCount || 0 });
       } catch (e) { sendJson(res, 400, { ok: false, error: e.message || "Dosya okunamadı." }); }
     });
   }

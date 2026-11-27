@@ -294,7 +294,11 @@ function parseCsv(text) {
 function importMenu(buf, filename) {
   var ext = (String(filename || "").toLowerCase().match(/\.([a-z0-9]+)$/) || [])[1] || "";
   var menu = [];
-  if (ext === "xlsx" || ext === "xlsm") {
+  if (ext === "pdf") {
+    var pm = require("./pdf-tablo.js").pdfGrid(buf);
+    menu = gridToMenu(pm.grid);
+    if (!menu.length) menu = linesToMenu(pm.lines);
+  } else if (ext === "xlsx" || ext === "xlsm") {
     menu = gridToMenu(xlsxGrid(readZip(buf)));
   } else if (ext === "docx") {
     var d = docxParse(readZip(buf));
@@ -307,7 +311,7 @@ function importMenu(buf, filename) {
   } else if (ext === "xls" || ext === "doc") {
     throw new Error("Eski biçim (." + ext + ") okunamıyor. Dosyayı Word/Excel'de “Farklı kaydet” ile ." + (ext === "xls" ? "xlsx" : "docx") + " olarak kaydedip tekrar deneyin.");
   } else {
-    throw new Error("Desteklenen biçimler: .xlsx, .docx, .csv, .txt");
+    throw new Error("Desteklenen biçimler: .pdf, .xlsx, .docx, .csv, .txt");
   }
   menu = menu.filter(function (m) { return m.items; });
   if (!menu.length) throw new Error("Dosyada gün adı/tarih ve yemek içeren satır bulunamadı. Her satırda bir gün adı (veya tarih) ve yemekler olmalı; örnek şablona bakın.");
@@ -342,15 +346,57 @@ function dayOf(cell) {
   if (d < 0) { var dt = findDate(cell); if (dt && String(cell).length <= 30) d = isoWeekday(dt); }
   return d;
 }
-function dutyItem(loc, name, day) {
+function dutyItem(loc, name, day, date) {
   loc = clean(loc).slice(0, 40); name = clean(name).slice(0, 80);
   if (!name || name === "-" || name === "—") return null;
-  return { loc: loc, name: name, day: day >= 0 ? DAYS[day] : "" };
+  var it = { loc: loc, name: name, day: day >= 0 ? DAYS[day] : "" };
+  if (date) it.date = date;
+  return it;
+}
+/* 0) TARİHLİ çizelge (her satır belirli bir gün): Hafta | Gün | Tarih | 1. Nöbet Yeri Bahçe | 2. Nöbet Yeri 1. Kat …
+      Örnek: Gelik Ayiçi 100. Yıl Ortaokulu "2026 KASIM-ARALIK-OCAK AYI NÖBET ÇİZELGESİ" (PDF). Her satırın tarihi saklanır;
+      panoda yalnız o tarihin nöbetçileri görünür. Tarihsiz satırlar (alttaki TEK/ÇİFT sayım tablosu gibi) atlanır.
+      "RESMİ TATİL" gibi tatil hücresi o gün için tek bir bilgi satırı olur. */
+function locLabel(head) {
+  var h = clean(head), f = fold(h);
+  var m = /^\s*\d+\s*\.?\s*nobet yeri\s*/.exec(f);
+  if (m) { var rest = h.slice(m[0].length).replace(/^[\s:–—-]+/, ""); if (rest) return rest; } /* "1. Nöbet Yeri Bahçe" -> "Bahçe" */
+  return h;
+}
+function gridToDutyDated(grid) {
+  var out = [], r, c, width = 0;
+  grid.forEach(function (row) { width = Math.max(width, row.length); });
+  /* Tarih sütunu: en az 3 satırında yalnız tarih (ve gün adı) olan sütun */
+  var dateCol = -1;
+  for (c = 0; c < width && dateCol < 0; c++) { var n = 0; for (r = 0; r < grid.length; r++) if (isDateHead(grid[r][c])) n++; if (n >= 3) dateCol = c; }
+  if (dateCol < 0) return out;
+  var firstData = -1; for (r = 0; r < grid.length; r++) if (isDateHead(grid[r][dateCol])) { firstData = r; break; }
+  var hr = -1; for (r = firstData - 1; r >= 0 && r >= firstData - 4; r--) if (grid[r].some(function (x) { return x; })) { hr = r; break; }
+  if (hr < 0) return out;
+  var head = grid[hr], locCols = [];
+  for (c = 0; c < width; c++) {
+    if (c === dateCol) continue;
+    var f = fold(head[c] || "").replace(/[^a-z0-9]+/g, " ").trim();
+    if (!f || /^(hafta|haftalar|gun|gunler|tarih|sira|no|sira no)$/.test(f)) continue;
+    locCols.push(c);
+  }
+  if (!locCols.length) return out;
+  for (r = firstData; r < grid.length; r++) {
+    var row = grid[r], iso = isDateHead(row[dateCol]) ? findDate(row[dateCol]) : null;
+    if (!iso) continue;
+    var wd = isoWeekday(iso), holiday = null;
+    locCols.forEach(function (ci) { var v = row[ci]; if (v && /tatil|bayram/i.test(fold(v))) holiday = v; });
+    if (holiday) { out.push({ loc: /tatil/.test(fold(holiday)) ? "Tatil" : "Not", name: clean(holiday).slice(0, 80), day: DAYS[wd], date: iso, note: true }); continue; }
+    locCols.forEach(function (ci) { var it = dutyItem(locLabel(head[ci]), row[ci], wd, iso); if (it) out.push(it); });
+  }
+  return out;
 }
 function gridToDuty(grid) {
   var out = [], r, c, push = function (it) { if (it) out.push(it); };
   grid = grid.map(function (row) { return (row || []).map(function (x) { return clean(x); }); }).filter(function (r) { return !isBlankRow(r); });
   if (!grid.length) return out;
+  var dated = gridToDutyDated(grid);
+  if (dated.length) return dated;
   var width = Math.max.apply(null, grid.map(function (r) { return r.length; }));
 
   /* 1) Başlık satırında en az 3 gün adı: günler sütunda */
@@ -423,7 +469,11 @@ function linesToDuty(lines) {
 function importDuty(buf, filename) {
   var ext = (String(filename || "").toLowerCase().match(/\.([a-z0-9]+)$/) || [])[1] || "";
   var duty = [];
-  if (ext === "xlsx" || ext === "xlsm") {
+  if (ext === "pdf") {
+    var pg = require("./pdf-tablo.js").pdfGrid(buf);
+    duty = gridToDuty(pg.grid);
+    if (!duty.length) duty = linesToDuty(pg.lines);
+  } else if (ext === "xlsx" || ext === "xlsm") {
     duty = gridToDuty(xlsxGrid(readZip(buf)));
   } else if (ext === "docx") {
     var d = docxParse(readZip(buf));
@@ -436,10 +486,17 @@ function importDuty(buf, filename) {
   } else if (ext === "xls" || ext === "doc") {
     throw new Error("Eski biçim (." + ext + ") okunamıyor. Dosyayı Word/Excel'de “Farklı kaydet” ile ." + (ext === "xls" ? "xlsx" : "docx") + " olarak kaydedip tekrar deneyin.");
   } else {
-    throw new Error("Desteklenen biçimler: .xlsx, .docx, .csv, .txt");
+    throw new Error("Desteklenen biçimler: .pdf, .xlsx, .docx, .csv, .txt");
   }
   if (!duty.length) throw new Error("Dosyada nöbet yeri ve öğretmen adı içeren satır bulunamadı. Örnek şablona bakın (Nöbet Yeri | Pazartesi | Salı | … ya da Nöbet Yeri | Öğretmen).");
-  var weekly = duty.some(function (x) { return x.day; });
+  var weekly = duty.some(function (x) { return x.day; }), dated = duty.some(function (x) { return x.date; });
+  if (dated) {
+    /* Tarihli çizelge: tarih sırası, gün içinde dosyadaki sıra; uzun dönem (ör. bütün yıl) için üst sınır daha geniş */
+    duty = duty.map(function (x, i) { return { x: x, i: i }; }).sort(function (a, b) { return (a.x.date || "9").localeCompare(b.x.date || "9") || a.i - b.i; }).map(function (o) { return o.x; });
+    if (duty.length > 1500) duty = duty.slice(0, 1500);
+    var days = {}; duty.forEach(function (x) { if (x.date) days[x.date] = 1; }); var ks = Object.keys(days).sort();
+    return { duty: duty, weekly: true, dated: true, from: ks[0], to: ks[ks.length - 1], dayCount: ks.length };
+  }
   /* Haftalık listede satırlar güne göre gruplanır (yönetim panelinde düzenlemesi kolay olsun); gün içi sıra korunur */
   if (weekly) duty = duty.map(function (x, i) { return { x: x, i: i, d: x.day ? DAYS.indexOf(x.day) : -1 }; })
     .sort(function (a, b) { return (a.d - b.d) || (a.i - b.i); }).map(function (o) { return o.x; });

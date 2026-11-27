@@ -297,6 +297,8 @@
   .row-item input, .row-item select{flex:1; border:1px solid #dbe0ea; border-radius:.5rem; padding:.4rem .55rem; background:#fff; font-size:.85rem; font-family:inherit;}
   .row-item .mini{max-width:6.5rem; flex:none;}
   .row-item .day-sel{max-width:8.2rem; flex:none;}
+  .row-item .date-in{max-width:9.5rem; flex:none;}
+  #dutyRows .mini{max-width:10rem;}
   .panel-head .duty-day{margin-left:auto; font-size:.72rem; font-weight:600; opacity:.7;}
   .row-item .iconbtn{background:none; border:none; color:#8891a4; padding:.3rem; border-radius:.4rem; flex-shrink:0;}
   .row-item .iconbtn:hover{background:#e9ecf3; color:#1c2333;}
@@ -687,13 +689,13 @@
     <section class="tab-panel" id="tab-nobet" style="display:none">
       <div class="admin-head"><div><h1>Nöbetçi personel</h1><p>Konum ve nöbetçi ad-soyad listesi. Gün seçilen satırlar yalnızca o gün panoda görünür.</p></div>
         <div style="display:flex;gap:.5rem;flex-wrap:wrap;">
-          <input type="file" id="dutyFile" accept=".xlsx,.docx,.csv,.txt" style="display:none" />
-          <button class="btn" id="btnImportDuty"><svg class="icon"><use href="#i-plus"/></svg>Word / Excel'den yükle</button>
+          <input type="file" id="dutyFile" accept=".pdf,.xlsx,.docx,.csv,.txt" style="display:none" />
+          <button class="btn" id="btnImportDuty"><svg class="icon"><use href="#i-plus"/></svg>Dosyadan yükle (PDF, Word, Excel)</button>
           <button class="btn" id="btnAddDuty"><svg class="icon"><use href="#i-plus"/></svg>Satır ekle</button>
         </div>
       </div>
       <div class="card" style="font-size:.85rem;line-height:1.5;">
-        <b>Toplu yükleme:</b> .xlsx, .docx, .csv veya .txt dosyası seçin. Okunan düzenler:
+        <b>Toplu yükleme:</b> .pdf, .xlsx, .docx, .csv veya .txt dosyası seçin. Okunan düzenler: <b>tarihli çizelge</b> (<i>Hafta | Gün | Tarih | 1. Nöbet Yeri | 2. Nöbet Yeri</i>, her gün yalnız o tarihin nöbetçileri görünür; PDF dahil),
         <b>haftalık çizelge</b> (<i>Nöbet Yeri | Pazartesi | Salı | … | Cuma</i>, hücrelerde öğretmen adları; ya da günler satırda),
         <b>uzun liste</b> (<i>Gün | Nöbet Yeri | Öğretmen</i>) ve <b>günsüz liste</b> (<i>Nöbet Yeri | Öğretmen</i>).
         Haftalık çizelge yüklenirse panoda <b>yalnızca bugünün</b> nöbetçileri görünür; hafta sonu pazartesi gösterilir. Örnek: <code>samples/nobet-listesi-ornek.xlsx</code>
@@ -789,7 +791,7 @@
     <section class="tab-panel" id="tab-yemek" style="display:none">
       <div class="admin-head"><div><h1>Haftalık yemek menüsü</h1><p>Panoda bugünün menüsü otomatik vurgulanır.</p></div>
         <div style="display:flex;gap:.5rem;flex-wrap:wrap;">
-          <input type="file" id="menuFile" accept=".xlsx,.docx,.csv,.txt" style="display:none" />
+          <input type="file" id="menuFile" accept=".pdf,.xlsx,.docx,.csv,.txt" style="display:none" />
           <button class="btn" id="btnImportMenu"><svg class="icon"><use href="#i-plus"/></svg>Word / Excel'den yükle</button>
           <button class="btn" id="btnAddMenu"><svg class="icon"><use href="#i-plus"/></svg>Gün ekle</button>
         </div>
@@ -1182,7 +1184,17 @@
 
   /* ================= RENDER: DUTY ================= */
   /* Gün atanmış satırlar yalnızca o gün görünür (hafta sonu pazartesi); günü boş satırlar her gün görünür */
+  /* Tarihli çizelge: yalnız bugünün tarihi; bugün kayıt yoksa sıradaki ilk nöbet günü (başlıkta tarihiyle). TV ile aynı kural. */
+  function dutyDated(list){
+    var iso = menuIso(new Date()), pick = null;
+    list.forEach(function(r){ if(r && r.date === iso) pick = iso; });
+    if(!pick) list.forEach(function(r){ if(r && r.date && r.date > iso && (!pick || r.date < pick)) pick = r.date; });
+    var rows = list.filter(function(r){ return r && (r.date ? r.date === pick : !r.day); }), label = "";
+    if(pick){ var p = pick.split("-"), pd = new Date(+p[0], +p[1] - 1, +p[2]); label = GUNLER[pd.getDay()] + (pick === iso ? "" : " " + (+p[2]) + "." + p[1]); }
+    return { rows: rows, weekly: true, day: label };
+  }
   function dutyToday(list){
+    if((list || []).some(function(r){ return r && r.date; })) return dutyDated(list);
     var d = new Date().getDay(), idx = d === 0 || d === 6 ? 1 : d;
     var today = foldTr(GUNLER[idx]), weekly = false;
     var out = (list || []).filter(function(r){ if(!r || !r.day) return true; weekly = true; return foldTr(r.day) === today; });
@@ -1799,10 +1811,12 @@
       el.innerHTML =
         '<input class="mini" data-f="loc" value="'+escapeHtml(row.loc)+'" placeholder="Konum" />'+
         '<input data-f="name" value="'+escapeHtml(row.name)+'" placeholder="Ad Soyad" />'+
-        '<select class="day-sel" data-f="day" title="Bu satır hangi gün gösterilsin?">' + DUTY_DAY_OPTS.map(function(d){ return '<option value="'+d+'"'+((row.day||"")===d?" selected":"")+'>'+(d||"Her gün")+'</option>'; }).join("") + '</select>'+
+        (row.date ? '<input class="date-in" type="date" data-f="date" value="'+escapeHtml(row.date)+'" title="Bu satır yalnız bu tarihte gösterilir" />' :
+        '<select class="day-sel" data-f="day" title="Bu satır hangi gün gösterilsin?">' + DUTY_DAY_OPTS.map(function(d){ return '<option value="'+d+'"'+((row.day||"")===d?" selected":"")+'>'+(d||"Her gün")+'</option>'; }).join("") + '</select>')+
         '<button class="iconbtn del" title="Sil"><svg class="icon"><use href="#i-trash"/></svg></button>';
       el.querySelector('[data-f="loc"]').addEventListener("input", function(e){ row.loc = e.target.value; });
-      el.querySelector('[data-f="day"]').addEventListener("change", function(e){ row.day = e.target.value; });
+      var dsel = el.querySelector('[data-f="day"]'); if(dsel) dsel.addEventListener("change", function(e){ row.day = e.target.value; });
+      var din = el.querySelector('[data-f="date"]'); if(din) din.addEventListener("change", function(e){ row.date = e.target.value; if(row.date){ var p = row.date.split("-"); row.day = GUNLER[new Date(+p[0], +p[1] - 1, +p[2]).getDay()]; } });
       el.querySelector('[data-f="name"]').addEventListener("input", function(e){ row.name = e.target.value; });
       el.querySelector(".del").addEventListener("click", function(){ state.duty.splice(i,1); renderDutyRows(); });
       wrap.appendChild(el);
@@ -1845,9 +1859,10 @@
       document.getElementById("mpTitle").textContent = "Nöbet listesi önizleme";
       document.getElementById("mpApplyTxt").textContent = "Listeyi uygula";
       list.classList.add("duty");
-      document.getElementById("mpInfo").textContent = fname + " — " + j.duty.length + " satır bulundu" + (j.weekly ? " (" + Object.keys(days).length + " gün, haftalık çizelge)" : "") + ". Mevcut nöbet listesinin yerine geçecek; onaylıyor musunuz?";
+      var fmt = function(iso){ return iso ? iso.split("-").reverse().join(".") : ""; };
+      document.getElementById("mpInfo").textContent = fname + " — " + j.duty.length + " satır bulundu" + (j.dated ? " (" + j.dayCount + " nöbet günü, " + fmt(j.from) + " – " + fmt(j.to) + "; panoda her gün yalnız o tarihin nöbetçileri)" : (j.weekly ? " (" + Object.keys(days).length + " gün, haftalık çizelge)" : "")) + ". Mevcut nöbet listesinin yerine geçecek; onaylıyor musunuz?";
       list.innerHTML = "";
-      j.duty.forEach(function(r){ var row = document.createElement("div"); row.className = "mp-row"; row.innerHTML = '<b>' + escapeHtml((r.day ? r.day + " · " : "") + (r.loc || "—")) + '</b><span>' + escapeHtml(r.name) + '</span>'; list.appendChild(row); });
+      j.duty.forEach(function(r){ var row = document.createElement("div"); row.className = "mp-row"; row.innerHTML = '<b>' + escapeHtml((r.date ? r.date.split("-").reverse().join(".") + " " : "") + (r.day ? r.day + " · " : "") + (r.loc || "—")) + '</b><span>' + escapeHtml(r.name) + '</span>'; list.appendChild(row); });
       function done(v){ m.classList.remove("show"); document.getElementById("mpApply").onclick = null; document.getElementById("mpCancel").onclick = null; resolve(v); }
       document.getElementById("mpApply").onclick = function(){ done(true); };
       document.getElementById("mpCancel").onclick = function(){ done(false); };

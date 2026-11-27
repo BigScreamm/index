@@ -535,7 +535,20 @@ body.th-yanserit .hn .hl{border-radius:8px!important}
 
   /* ================= Nöbetçi personel ================= */
   /* Gün atanmış satırlar (haftalık çizelge) yalnızca o gün görünür; hafta sonu pazartesi. Günü boş satırlar her gün görünür. */
+  /* Tarihli çizelge (her satırın "date" alanı var): yalnız bugünün tarihi; bugün kayıt yoksa (hafta sonu, ara tatil, çizelge
+     başlamadan önce) sıradaki ilk nöbet günü, başlıkta tarihiyle. Tarihi ve günü olmayan satırlar her gün görünür. */
+  function dutyDated(all){
+    var now = nowD(), iso = menuIso(now), pick = null, i, r, out = [];
+    for(i = 0; i < all.length; i++){ r = all[i]; if(r && r.date === iso){ pick = iso; break; } }
+    if(!pick){ for(i = 0; i < all.length; i++){ r = all[i]; if(r && r.date && r.date > iso && (!pick || r.date < pick)) pick = r.date; } }
+    for(i = 0; i < all.length; i++){ r = all[i]; if(!r) continue; if(r.date ? r.date === pick : !r.day) out.push(r); }
+    var label = "";
+    if(pick){ var p = pick.split("-"), pd = new Date(+p[0], +p[1] - 1, +p[2]); label = pick === iso ? GUNLER[pd.getDay()] : GUNLER[pd.getDay()] + " " + (+p[2]) + "." + p[1]; }
+    return { rows: out, weekly: true, day: label };
+  }
   function dutyToday(){
+    var allD = S.duty || [];
+    for(var q = 0; q < allD.length; q++){ if(allD[q] && allD[q].date) return dutyDated(allD); }
     var d = nowD().getDay(), idx = (d === 0 || d === 6) ? 1 : d, today = lower(GUNLER[idx]), all = S.duty || [], out = [], weekly = false;
     for(var i = 0; i < all.length; i++){
       var r = all[i]; if(!r) continue;

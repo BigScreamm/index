@@ -116,7 +116,10 @@ Yönetim paneli → **Yemek menüsü** → **Word / Excel'den yükle**. Destekle
 - Tarihli (aylık) liste yüklenirse panoda yalnızca **bulunulan hafta** görünür; hafta sonu gelecek hafta gösterilir. Böylece listeyi ayda bir yüklemek yeter.
 - Örnek şablon: `samples/yemek-listesi-ornek.xlsx` ve `.docx`.
 
-## Nöbetçi listesini Word / Excel'den toplu yükleme
+## Nöbetçi listesini PDF / Word / Excel'den toplu yükleme
+**Tarihli çizelge (PDF dahil):** *Hafta | Gün | Tarih | 1. Nöbet Yeri | 2. Nöbet Yeri* biçimindeki, her satırı belirli bir tarihe ait çizelgeler (ör. “2026 KASIM-ARALIK-OCAK AYI NÖBET ÇİZELGESİ”) PDF, Excel ya da Word olarak yüklenebilir. Her nöbet kendi tarihiyle saklanır; TV ve bilgisayar ekranında **yalnızca o günün nöbetçileri** görünür. Hafta sonu, ara tatilde ya da çizelge başlamadan önce sıradaki ilk nöbet günü, başlıkta tarihiyle (“Pazartesi 7.12”) gösterilir. “RESMİ TATİL” satırı o gün için “Tatil” olarak görünür; çizelgenin altındaki sayım tablosu (TEK/ÇİFT) dikkate alınmaz. Nöbet yeri adı başlıktan alınır (“1. Nöbet Yeri Bahçe” → “Bahçe”). Çizelge bitince yeni dönemin çizelgesini yükleyin.
+- PDF, Word/Excel'den ya da tarayıcıdan “PDF olarak kaydet” ile oluşturulmuş olmalı; **taranmış (fotoğraf) PDF okunamaz**.
+
 Yönetim paneli → **Nöbetçi personel** → **Word / Excel'den yükle**. Desteklenen: `.xlsx`, `.docx`, `.csv`, `.txt` (eski `.xls`/`.doc` dosyalarını “Farklı kaydet” ile `.xlsx`/`.docx` yapın). Yüklemeden önce önizleme gösterilir; onaylayınca mevcut listenin yerine geçer.
 - **Haftalık çizelge** (okullardaki en yaygın biçim): ilk sütunda nöbet yerleri, başlıkta günler (*Nöbet Yeri | Pazartesi | Salı | … | Cuma*), hücrelerde öğretmen adları. Günler satırda, nöbet yerleri başlıkta olan çizelgeler de okunur.
 - **Uzun liste:** *Gün | Nöbet Yeri | Öğretmen* (gün hücresi boşsa üstteki gün sürer). **Günsüz liste:** *Nöbet Yeri | Öğretmen*.
