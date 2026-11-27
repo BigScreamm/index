@@ -196,6 +196,7 @@ Yönetim paneli > **Onur köşesi**: "Ayın en temiz sınıfı" ve "Ayın öğre
 ## Ses düzeltmeleri ve sorun giderme
 
 - Ses ayarını (açık / kapalı / otomatik) değiştirmek artık videoyu baştan başlatmaz; ayar oynayan videoya anında uygulanır.
+- **Otomatik ses ve teneffüsler (Kasım 2026'da düzeltildi):** programınızda teneffüsleri ayrı satır olarak yazmanız gerekmez. Okul günü içinde (ilk dersin başı – son dersin sonu) iki ders arasındaki boşluk da teneffüs sayılır ve ses açılır. Eskiden yalnızca "Teneffüs" satırı olan programlarda çalışıyordu; teneffüs satırı olmayan programlarda ses hiç açılmıyordu.
 - Otomatik ses: programda "Teneffüs" kutusu işaretli satırlar ya da adında teneffüs / öğle arası / ara geçen satırlar teneffüs sayılır; açık, ders saatlerinde ve ders dışında kapalı olur.
 - TV'de sorun gidermek için panonun adresinin sonuna `?debug=1` ekleyin (ör. `http://192.168.1.10:8080/?debug=1`): sol altta "ses: otomatik · teneffüs · SESLİ" gibi bir satır görünür.
 

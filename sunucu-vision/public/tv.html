@@ -903,12 +903,24 @@ body.th-yanserit .hn .hl{border-radius:8px!important}
     var n = lower(String(r.name || ""));
     return /teneff|öğle|ogle|\bara\b|arası/.test(n);
   }
-  function isBreakNow(){
+  /* Teneffüs mü? 1) Şu an bir program satırının içindeyse o satıra bakılır (Teneffüs / Öğle Arası…).
+     2) Hiçbir satıra denk gelmiyorsa ama okul günü sürüyorsa (ilk dersin başı ile son dersin sonu arası), bu iki ders
+        ARASINDAKİ BOŞLUKTUR = teneffüs. Pek çok okul programına teneffüsleri ayrı satır olarak yazmaz (yalnız dersler +
+        Öğle Arası); eskiden bu boşluklar "ders" sayılıyor, otomatik ses hiç açılmıyordu.
+     3) Okul saatleri dışı: teneffüs değil (ses kapalı). */
+  /* ?debug=1 göstergesi için: teneffüs / ders / okul saati dışı */
+  function phaseNow(){
+    if(isBreakNow()) return "teneffüs";
     var list = sortedSchedule(), d = nowD(), n = d.getHours() * 60 + d.getMinutes();
+    return list.length && n >= toMinutes(list[0].start) && n < toMinutes(list[list.length - 1].end) ? "ders" : "okul saati dışı";
+  }
+  function isBreakNow(){
+    var list = sortedSchedule(), d = nowD(), n = d.getHours() * 60 + d.getMinutes() + d.getSeconds() / 60;
+    if(!list.length) return false;
     for(var i = 0; i < list.length; i++){
       if(n >= toMinutes(list[i].start) && n < toMinutes(list[i].end)) return isBreakRow(list[i]);
     }
-    return false;
+    return n >= toMinutes(list[0].start) && n < toMinutes(list[list.length - 1].end);
   }
   /* Güncel ses ayarını oynayan videoya yeniden başlatmadan uygular (sabit açık/kapalı ya da otomatik) */
   function applySound(){
@@ -916,7 +928,7 @@ body.th-yanserit .hn .hl{border-radius:8px!important}
     var list = mediaList(), it = curVid.item, i;
     for(i = 0; i < list.length; i++){ if(list[i].id === it.id){ it = curVid.item = list[i]; break; } }
     var wantMuted = it.soundAuto ? !isBreakNow() : !it.sound, v = curVid.el;
-    soundState = (it.soundAuto ? "otomatik" : (it.sound ? "açık" : "kapalı")) + " · " + (isBreakNow() ? "teneffüs" : "ders") + " · " + (v.muted ? "sessiz" : "SESLİ");
+    soundState = (it.soundAuto ? "otomatik" : (it.sound ? "açık" : "kapalı")) + " · " + phaseNow() + " · " + (v.muted ? "sessiz" : "SESLİ");
     if(v.muted !== wantMuted){
       v.muted = wantMuted; v.defaultMuted = wantMuted;
       if(wantMuted) v.setAttribute("muted", ""); else { v.removeAttribute("muted"); try{ v.volume = 1; }catch(e){} }
